@@ -1,44 +1,29 @@
-<!DOCTYPE html>
-<html lang="bn">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV Stream Player</title>
-    <!-- Video.js Player CSS -->
-    <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet" />
-</head>
-<body style="background-color: #000; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh;">
+<script>
+    // URL Parameter থেকে 'url' লিঙ্কটি খুঁজে নেওয়ার কোড
+    const urlParams = new URLSearchParams(window.location.search);
+    let targetUrl = urlParams.get('url');
 
-    <!-- Video Player Element -->
-    <video id="my-video" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto" width="640" height="360"></video>
+    // যদি লিঙ্কের শেষে কোনো ?url= না দেওয়া থাকে, তবে এটি ডিফল্ট লিঙ্ক হিসেবে কাজ করবে
+    if (!targetUrl) {
+        targetUrl = "http://manreef.com/live/D9F2D8735CFC0D4/QjCmvV5W3T/72142.ts.m3u8";
+    }
 
-    <!-- Video.js and HLS.js Library -->
-    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    // ফ্রি পাব্লিক CORS প্রক্সি যুক্ত করা
+    const proxiedUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
 
-    <script>
-        // আসল IPTV লিঙ্ক (যেটি বাইপাস করতে হবে)
-        const originalUrl = "http://manreef.com/live/D9F2D8735CFC0D4/QjCmvV5W3T/72142.ts.m3u8";
+    const video = document.getElementById('my-video');
 
-        // ফ্রি পাবলিক CORS প্রক্সি লিঙ্ক (corsproxy.io ব্যবহার করা হয়েছে)
-        const proxiedUrl = "https://corsproxy.io/?" + encodeURIComponent(originalUrl);
-
-        const video = document.getElementById('my-video');
-
-        if (Hls.isSupported()) {
-            const hls = new HLS();
-            // প্রক্সি লিঙ্ক লোড করা হচ্ছে
-            hls.loadSource(proxiedUrl);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, function () {
-                video.play();
-            });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = proxiedUrl;
-            video.addEventListener('loadedmetadata', function () {
-                video.play();
-            });
-        }
-    </script>
-</body>
-</html>
+    if (Hls.isSupported()) {
+        const hls = new HLS();
+        hls.loadSource(proxiedUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            video.play();
+        });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = proxiedUrl;
+        video.addEventListener('loadedmetadata', function () {
+            video.play();
+        });
+    }
+</script>
