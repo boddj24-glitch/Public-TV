@@ -1,29 +1,71 @@
-<script>
-    // URL Parameter থেকে 'url' লিঙ্কটি খুঁজে নেওয়ার কোড
-    const urlParams = new URLSearchParams(window.location.search);
-    let targetUrl = urlParams.get('url');
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHAWON TV Player</title>
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet" />
+    <style>
+        body {
+            background-color: #0d1117;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        .player-container {
+            width: 90%;
+            max-width: 800px;
+        }
+    </style>
+</head>
+<body>
 
-    // যদি লিঙ্কের শেষে কোনো ?url= না দেওয়া থাকে, তবে এটি ডিফল্ট লিঙ্ক হিসেবে কাজ করবে
-    if (!targetUrl) {
-        targetUrl = "http://manreef.com/live/D9F2D8735CFC0D4/QjCmvV5W3T/72142.ts.m3u8";
-    }
+    <div class="player-container">
+        <video id="my-video" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto" width="100%" height="450">
+        </video>
+    </div>
 
-    // ফ্রি পাব্লিক CORS প্রক্সি যুক্ত করা
-    const proxiedUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+    <!-- Video.js and HLS.js Script -->
+    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
-    const video = document.getElementById('my-video');
+    <script>
+        // URL Parameter read
+        const urlParams = new URLSearchParams(window.location.search);
+        let targetUrl = urlParams.get('url');
 
-    if (Hls.isSupported()) {
-        const hls = new HLS();
-        hls.loadSource(proxiedUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, function () {
-            video.play();
-        });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = proxiedUrl;
-        video.addEventListener('loadedmetadata', function () {
-            video.play();
-        });
-    }
-</script>
+        // Default Link
+        if (!targetUrl) {
+            targetUrl = "http://manreef.com/live/D9F2D8735CFC0D4/QjCmvV5W3T/72142.ts.m3u8";
+        }
+
+        // Public CORS Proxy with encoded URL
+        const proxiedUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+
+        const video = document.getElementById('my-video');
+
+        if (Hls.isSupported()) {
+            const hls = new HLS({
+                xhrSetup: function(xhr, url) {
+                    // Custom headers to bypass stream blocks
+                    xhr.setRequestHeader("User-Agent", "IPTVSmarters/3.1.5 (Linux; Android 10)");
+                }
+            });
+            hls.loadSource(proxiedUrl);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                video.play();
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = proxiedUrl;
+            video.addEventListener('loadedmetadata', function () {
+                video.play();
+            });
+        }
+    </script>
+</body>
+</html>
