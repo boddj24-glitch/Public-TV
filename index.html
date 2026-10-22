@@ -29,7 +29,6 @@
         .btn { padding: 8px 14px; background-color: #334155; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
         .btn:hover, .btn.active { background-color: #0284c7; }
         .btn-pip { background-color: #e11d48; }
-        .status-loading { padding: 20px; text-align: center; color: #94a3b8; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -39,9 +38,7 @@
             <h2>SHAWON TV</h2>
             <input type="text" id="searchInput" class="search-box" placeholder="Search Channel..." onkeyup="filterChannels()">
         </div>
-        <div class="channel-list" id="channelList">
-            <div class="status-loading" id="loadingText">Channles Loading... Please Wait</div>
-        </div>
+        <div class="channel-list" id="channelList"></div>
     </div>
 
     <div class="main-content">
@@ -59,88 +56,50 @@
     </div>
 
     <script>
-        // Cloudflare Worker প্রক্সি ব্যবহার করা হয়েছে যা HTTPS রিকোয়েস্ট ব্লক করে না
-        const primaryProxy = "https://robiproxi.bushmr263.workers.dev/?url=";
-        const backupProxy = "https://online-tv-rho.vercel.app/api/proxy?url=";
-        
-        const rawM3uUrl = "http://makitekk.com/get.php?username=AR6W4413XQUAMR7&password=8DFd4RuXZH&type=m3u_plus&output=ts";
+        // আপনার Vercel প্রক্সি লিংক
+        const vercelProxy = "https://online-tv-rho.vercel.app/api/proxy?url=";
 
-        let allChannels = [];
+        // আপনার Playlist Studio 5.0 থেকে কপি করা সরাসরি চ্যানেল লিস্ট এখানে যুক্ত করুন
+        const channels = [
+            {
+                name: "HINDI - STAR GOLD 2",
+                url: "http://makitekk.com/live/AR6W4413XQUAMR7/8DFd4RuXZH/510292.ts",
+                logo: "https://go4.pw/india/STARGOLD2.png"
+            },
+            {
+                name: "HINDI - SONY MAX HD",
+                url: "http://makitekk.com/live/AR6W4413XQUAMR7/8DFd4RuXZH/102017.ts",
+                logo: "https://via.placeholder.com/35?text=MAX"
+            },
+            {
+                name: "HINDI - STAR GOLD HD",
+                url: "http://makitekk.com/live/AR6W4413XQUAMR7/8DFd4RuXZH/72141.ts",
+                logo: "https://via.placeholder.com/35?text=STAR"
+            }
+            // আপনার ইচ্ছেমতো আরও চ্যানেল এখানে নিচে যোগ করতে পারবেন
+        ];
+
         let currentStreamUrl = "";
         let currentEngine = "videojs";
         let hlsInstance = null;
         let clapprPlayerInstance = null;
 
         document.addEventListener("DOMContentLoaded", () => {
-            fetchPlaylist();
+            renderChannels(channels);
+            if (channels.length > 0) {
+                playChannel(channels[0].url);
+            }
         });
 
-        async function fetchPlaylist() {
-            const loadingText = document.getElementById('loadingText');
-            loadingText.innerText = "Connecting to Server...";
-
-            try {
-                // ১. ক্লাউডফ্লেয়ার প্রক্সি দিয়ে ফেচ করা
-                let targetUrl = primaryProxy + encodeURIComponent(rawM3uUrl);
-                let response = await fetch(targetUrl);
-                
-                // ব্যর্থ হলে ব্যাকআপ Vercel প্রক্সি দিয়ে চেষ্টা করবে
-                if (!response.ok) {
-                    targetUrl = backupProxy + encodeURIComponent(rawM3uUrl);
-                    response = await fetch(targetUrl);
-                }
-
-                if (!response.ok) throw new Error("Server Response Failed");
-
-                const text = await response.text();
-                parseM3U(text);
-            } catch (err) {
-                loadingText.innerText = "Loading Error! Refreshing...";
-                console.error("Fetch Error:", err);
-            }
-        }
-
-        function parseM3U(m3uText) {
-            const lines = m3uText.split('\n');
-            allChannels = [];
-            let currentChannel = {};
-
-            for (let i = 0; i < lines.length; i++) {
-                let line = lines[i].trim();
-
-                if (line.startsWith('#EXTINF:')) {
-                    let nameMatch = line.match(/,(.+)$/);
-                    let logoMatch = line.match(/tvg-logo="([^"]+)"/);
-
-                    currentChannel = {
-                        name: nameMatch ? nameMatch[1].trim() : "Channel " + (allChannels.length + 1),
-                        logo: logoMatch ? logoMatch[1] : "https://via.placeholder.com/35?text=TV"
-                    };
-                } else if (line && !line.startsWith('#')) {
-                    currentChannel.url = line;
-                    allChannels.push(currentChannel);
-                    currentChannel = {};
-                }
-            }
-
-            renderChannels(allChannels);
-            if (allChannels.length > 0) {
-                playChannel(allChannels[0].url);
-            }
-        }
-
-        function renderChannels(channels) {
+        function renderChannels(list) {
             const channelListDiv = document.getElementById('channelList');
             channelListDiv.innerHTML = "";
 
-            if (channels.length === 0) {
-                channelListDiv.innerHTML = '<div class="status-loading">No Channels Found</div>';
-                return;
-            }
-
-            channels.forEach((ch) => {
+            list.forEach((ch, index) => {
                 const item = document.createElement('div');
                 item.className = 'channel-item';
+                if(index === 0) item.classList.add('active');
+                
                 item.onclick = () => {
                     document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
                     item.classList.add('active');
@@ -156,14 +115,14 @@
         }
 
         function filterChannels() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
+            const query = document.getElementById('searchInput'].value.toLowerCase();
+            const filtered = channels.filter(ch => ch.name.toLowerCase().includes(query));
             renderChannels(filtered);
         }
 
         function playChannel(rawStreamUrl) {
-            // স্ট্রিম চালানোর সময় Cloudflare Worker প্রক্সি ব্যবহার করবে
-            currentStreamUrl = primaryProxy + encodeURIComponent(rawStreamUrl);
+            // Vercel প্রক্সির মাধ্যমে ভিডিও লিংক সিকিউর করা হচ্ছে
+            currentStreamUrl = vercelProxy + encodeURIComponent(rawStreamUrl);
             loadStream(currentStreamUrl);
         }
 
