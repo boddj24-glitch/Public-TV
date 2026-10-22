@@ -3,68 +3,357 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHAWON TV Player</title>
+    <title>SHAWON TV - Live Streaming</title>
+    
     <!-- Video.js CSS -->
     <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet" />
+    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
+
     <style>
-        body {
-            background-color: #0d1117;
+        * {
+            box-sizing: border-box;
             margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        .player-container {
-            width: 90%;
-            max-width: 800px;
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        /* Sidebar Styles */
+        .sidebar {
+            width: 320px;
+            background-color: #1e293b;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #334155;
+        }
+        .sidebar-header {
+            padding: 15px;
+            background-color: #0f172a;
+            border-bottom: 1px solid #334155;
+        }
+        .sidebar-header h2 {
+            font-size: 1.2rem;
+            color: #38bdf8;
+            margin-bottom: 10px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background-color: #1e293b;
+            color: #fff;
+            outline: none;
+        }
+        .channel-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .channel-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 6px;
+            background-color: #334155;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .channel-item:hover, .channel-item.active {
+            background-color: #0284c7;
+        }
+        .channel-item img {
+            width: 35px;
+            height: 35px;
+            object-fit: contain;
+            margin-right: 10px;
+            background: #0f172a;
+            border-radius: 4px;
+            padding: 2px;
+        }
+        .channel-name {
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Main Player Container */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #0b0f19;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        .player-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        #videoPlayer, #clapprPlayer {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .controls-panel {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            background: #1e293b;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .btn {
+            padding: 8px 14px;
+            background-color: #334155;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .btn:hover, .btn.active {
+            background-color: #0284c7;
+        }
+        .btn-pip {
+            background-color: #e11d48;
+        }
+        .btn-pip:hover {
+            background-color: #be123c;
+        }
+        .status-loading {
+            padding: 20px;
+            text-align: center;
+            color: #94a3b8;
         }
     </style>
 </head>
 <body>
 
-    <div class="player-container">
-        <video id="my-video" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto" width="100%" height="450">
-        </video>
+    <!-- Sidebar Channel List -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>SHAWON TV</h2>
+            <input type="text" id="searchInput" class="search-box" placeholder="Search Channel..." onkeyup="filterChannels()">
+        </div>
+        <div class="channel-list" id="channelList">
+            <div class="status-loading" id="loadingText">Loading Channels from Server...</div>
+        </div>
     </div>
 
-    <!-- Video.js and HLS.js Script -->
-    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- Main Player Area -->
+    <div class="main-content">
+        <div class="player-wrapper" id="playerWrapper">
+            <video id="videoPlayer" class="video-js vjs-default-skin vjs-big-play-centered" controls autoplay playsinline></video>
+            <div id="clapprPlayer" style="display: none;"></div>
+        </div>
+
+        <div class="controls-panel">
+            <button class="btn active" id="btnVideoJs" onclick="switchEngine('videojs')">Main (Video.js)</button>
+            <button class="btn" id="btnClappr" onclick="switchEngine('clappr')">Clappr</button>
+            <button class="btn" id="btnHtml5" onclick="switchEngine('html5')">HTML5</button>
+            <button class="btn btn-pip" onclick="togglePiP()">PIP Mode</button>
+        </div>
+    </div>
 
     <script>
-        // URL Parameter read
-        const urlParams = new URLSearchParams(window.location.search);
-        let targetUrl = urlParams.get('url');
+        const vercelProxy = "https://online-tv-rho.vercel.app/api/proxy?url=";
+        const xtreamM3uUrl = "http://makitekk.com/get.php?username=AR6W4413XQUAMR7&password=8DFd4RuXZH&type=m3u_plus&output=ts";
 
-        // Default Link
-        if (!targetUrl) {
-            targetUrl = "http://manreef.com/live/D9F2D8735CFC0D4/QjCmvV5W3T/72142.ts.m3u8";
+        let allChannels = [];
+        let currentStreamUrl = "";
+        let currentEngine = "videojs";
+        let hlsInstance = null;
+        let clapprPlayerInstance = null;
+        let videoJsPlayer = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            videoJsPlayer = videojs('videoPlayer');
+            fetchPlaylist();
+        });
+
+        // 1. Fetch & Parse M3U Playlist
+        async function fetchPlaylist() {
+            try {
+                const proxiedM3uUrl = vercelProxy + encodeURIComponent(xtreamM3uUrl);
+                const response = await fetch(proxiedM3uUrl);
+                
+                if (!response.ok) throw new Error("Failed to load playlist");
+                
+                const text = await response.text();
+                parseM3U(text);
+            } catch (err) {
+                document.getElementById('loadingText').innerText = "Error loading channels. Please try again.";
+                console.error(err);
+            }
         }
 
-        // Public CORS Proxy with encoded URL
-        const proxiedUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+        function parseM3U(m3uText) {
+            const lines = m3uText.split('\n');
+            allChannels = [];
+            let currentChannel = {};
 
-        const video = document.getElementById('my-video');
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
 
-        if (Hls.isSupported()) {
-            const hls = new HLS({
-                xhrSetup: function(xhr, url) {
-                    // Custom headers to bypass stream blocks
-                    xhr.setRequestHeader("User-Agent", "IPTVSmarters/3.1.5 (Linux; Android 10)");
+                if (line.startsWith('#EXTINF:')) {
+                    let nameMatch = line.match(/,(.+)$/);
+                    let logoMatch = line.match(/tvg-logo="([^"]+)"/);
+
+                    currentChannel = {
+                        name: nameMatch ? nameMatch[1].trim() : "Unknown Channel",
+                        logo: logoMatch ? logoMatch[1] : "https://via.placeholder.com/35?text=TV"
+                    };
+                } else if (line && !line.startsWith('#')) {
+                    currentChannel.url = line;
+                    allChannels.push(currentChannel);
+                    currentChannel = {};
                 }
+            }
+
+            renderChannels(allChannels);
+            if (allChannels.length > 0) {
+                playChannel(allChannels[0].url);
+            }
+        }
+
+        // 2. Render Channels in Sidebar
+        function renderChannels(channels) {
+            const channelListDiv = document.getElementById('channelList');
+            channelListDiv.innerHTML = "";
+
+            if (channels.length === 0) {
+                channelListDiv.innerHTML = '<div class="status-loading">No channels found.</div>';
+                return;
+            }
+
+            channels.forEach((ch, index) => {
+                const item = document.createElement('div');
+                item.className = 'channel-item';
+                item.onclick = () => {
+                    document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                    playChannel(ch.url);
+                };
+
+                item.innerHTML = `
+                    <img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/35?text=TV'">
+                    <span class="channel-name">${ch.name}</span>
+                `;
+                channelListDiv.appendChild(item);
             });
-            hls.loadSource(proxiedUrl);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, function () {
-                video.play();
+        }
+
+        // 3. Search Filter
+        function filterChannels() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
+            renderChannels(filtered);
+        }
+
+        // 4. Play Stream with Selected Engine
+        function playChannel(rawStreamUrl) {
+            currentStreamUrl = vercelProxy + encodeURIComponent(rawStreamUrl);
+            loadStream(currentStreamUrl);
+        }
+
+        function loadStream(proxiedUrl) {
+            const rawVideo = document.getElementById('videoPlayer');
+            
+            // Clean previous instances
+            if (hlsInstance) hlsInstance.destroy();
+            if (clapprPlayerInstance) clapprPlayerInstance.destroy();
+
+            if (currentEngine === 'clappr') {
+                document.getElementById('videoPlayer').style.display = 'none';
+                document.getElementById('clapprPlayer').style.display = 'block';
+
+                clapprPlayerInstance = new Clappr.Player({
+                    source: proxiedUrl,
+                    parentId: "#clapprPlayer",
+                    autoPlay: true,
+                    width: '100%',
+                    height: '100%'
+                });
+            } else if (currentEngine === 'videojs' || currentEngine === 'html5') {
+                document.getElementById('clapprPlayer').style.display = 'none';
+                document.getElementById('videoPlayer').style.display = 'block';
+
+                if (Hls.isSupported()) {
+                    hlsInstance = new Hls({
+                        maxBufferLength: 30,
+                        maxMaxBufferLength: 60,
+                        manifestLoadingTimeOut: 10000,
+                        fragLoadingTimeOut: 20000,
+                        enableWorker: true,
+                        lowLatencyMode: false
+                    });
+
+                    hlsInstance.loadSource(proxiedUrl);
+                    hlsInstance.attachMedia(rawVideo);
+                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                        rawVideo.play();
+                    });
+
+                    hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+                        if (data.fatal) {
+                            switch (data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    hlsInstance.startLoad();
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    hlsInstance.recoverMediaError();
+                                    break;
+                                default:
+                                    hlsInstance.destroy();
+                                    break;
+                            }
+                        }
+                    });
+                } else if (rawVideo.canPlayType('application/vnd.apple.mpegurl')) {
+                    rawVideo.src = proxiedUrl;
+                    rawVideo.play();
+                }
+            }
+        }
+
+        // 5. Engine Switching
+        function switchEngine(engine) {
+            currentEngine = engine;
+            document.querySelectorAll('.controls-panel .btn').forEach(b => {
+                if (!b.classList.contains('btn-pip')) b.classList.remove('active');
             });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = proxiedUrl;
-            video.addEventListener('loadedmetadata', function () {
-                video.play();
-            });
+
+            if (engine === 'videojs') document.getElementById('btnVideoJs').classList.add('active');
+            if (engine === 'clappr') document.getElementById('btnClappr').classList.add('active');
+            if (engine === 'html5') document.getElementById('btnHtml5').classList.add('active');
+
+            if (currentStreamUrl) loadStream(currentStreamUrl);
+        }
+
+        // 6. PIP Mode Toggle
+        async function togglePiP() {
+            const video = document.getElementById('videoPlayer');
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else if (document.pictureInPictureEnabled && video) {
+                await video.requestPictureInPicture();
+            }
         }
     </script>
 </body>
