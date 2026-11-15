@@ -29,6 +29,7 @@
         .btn { padding: 8px 14px; background-color: #334155; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
         .btn:hover, .btn.active { background-color: #0284c7; }
         .btn-pip { background-color: #e11d48; }
+        .loading-text { text-align: center; padding: 20px; color: #94a3b8; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -38,7 +39,9 @@
             <h2>SHAWON TV</h2>
             <input type="text" id="searchInput" class="search-box" placeholder="Search Channel..." onkeyup="filterChannels()">
         </div>
-        <div class="channel-list" id="channelList"></div>
+        <div class="channel-list" id="channelList">
+            <div class="loading-text">চ্যানেল লোড হচ্ছে...</div>
+        </div>
     </div>
 
     <div class="main-content">
@@ -59,37 +62,47 @@
         // আপনার Vercel প্রক্সি লিংক
         const vercelProxy = "https://online-tv-rho.vercel.app/api/proxy?url=";
 
-        // আপনার Playlist Studio 5.0 থেকে কপি করা সরাসরি চ্যানেল লিস্ট এখানে যুক্ত করুন
-        const channels = [
-            {
-                name: "HINDI - STAR GOLD 2",
-                url: "http://makitekk.com/live/AR6W4413XQUAMR7/8DFd4RuXZH/510292.ts",
-                logo: "https://go4.pw/india/STARGOLD2.png"
-            },
-            {
-                name: "HINDI - SONY MAX HD",
-                url: "http://makitekk.com/live/AR6W4413XQUAMR7/8DFd4RuXZH/102017.ts",
-                logo: "https://via.placeholder.com/35?text=MAX"
-            },
-            {
-                name: "HINDI - STAR GOLD HD",
-                url: "http://makitekk.com/live/AR6W4413XQUAMR7/8DFd4RuXZH/72141.ts",
-                logo: "https://via.placeholder.com/35?text=STAR"
-            }
-            // আপনার ইচ্ছেমতো আরও চ্যানেল এখানে নিচে যোগ করতে পারবেন
-        ];
+        // আপনার বাংলা JSON ফাইলের লিংক বা লোকাল পাথ এখানে দিন (যেমন: "bangla.json" বা "https://example.com/bangla.json")
+        const jsonUrl = "bangla.json"; 
 
+        let channels = [];
         let currentStreamUrl = "";
         let currentEngine = "videojs";
         let hlsInstance = null;
         let clapprPlayerInstance = null;
 
         document.addEventListener("DOMContentLoaded", () => {
-            renderChannels(channels);
-            if (channels.length > 0) {
-                playChannel(channels[0].url);
-            }
+            fetchChannelsFromJson();
         });
+
+        // JSON থেকে চ্যানেল কল করার ফাংশন
+        async function fetchChannelsFromJson() {
+            const channelListDiv = document.getElementById('channelList');
+            try {
+                const response = await fetch(jsonUrl);
+                if (!response.ok) throw new Error("JSON লোড হতে সমস্যা হয়েছে");
+                
+                const data = await response.json();
+                
+                // JSON-এর বিভিন্ন ফরম্যাট (name/title, url/link/stream, logo/image) সাপোর্ট করার জন্য ম্যাপ করা হলো
+                const rawList = Array.isArray(data) ? data : (data.channels || []);
+                channels = rawList.map(ch => ({
+                    name: ch.name || ch.title || ch.channel_name || "Unknown Channel",
+                    url: ch.url || ch.link || ch.stream || ch.stream_url || "",
+                    logo: ch.logo || ch.image || ch.icon || "https://via.placeholder.com/35?text=TV"
+                })).filter(ch => ch.url !== "");
+
+                if (channels.length > 0) {
+                    renderChannels(channels);
+                    playChannel(channels[0].url);
+                } else {
+                    channelListDiv.innerHTML = `<div class="loading-text">কোনো চ্যানেল পাওয়া যায়নি!</div>`;
+                }
+            } catch (error) {
+                console.error("JSON Fetch Error:", error);
+                channelListDiv.innerHTML = `<div class="loading-text" style="color:#f87171;">JSON ফাইল লোড করতে ব্যর্থ হয়েছে! লিংক বা ফাইল পাথ চেক করুন।</div>`;
+            }
+        }
 
         function renderChannels(list) {
             const channelListDiv = document.getElementById('channelList');
@@ -115,13 +128,12 @@
         }
 
         function filterChannels() {
-            const query = document.getElementById('searchInput'].value.toLowerCase();
+            const query = document.getElementById('searchInput').value.toLowerCase();
             const filtered = channels.filter(ch => ch.name.toLowerCase().includes(query));
             renderChannels(filtered);
         }
 
         function playChannel(rawStreamUrl) {
-            // Vercel প্রক্সির মাধ্যমে ভিডিও লিংক সিকিউর করা হচ্ছে
             currentStreamUrl = vercelProxy + encodeURIComponent(rawStreamUrl);
             loadStream(currentStreamUrl);
         }
