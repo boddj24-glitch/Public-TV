@@ -29,7 +29,7 @@
         .btn { padding: 8px 14px; background-color: #334155; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
         .btn:hover, .btn.active { background-color: #0284c7; }
         .btn-pip { background-color: #e11d48; }
-        .loading-text { text-align: center; padding: 20px; color: #94a3b8; font-size: 0.9rem; }
+        .status-msg { padding: 15px; text-align: center; color: #94a3b8; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -40,7 +40,7 @@
             <input type="text" id="searchInput" class="search-box" placeholder="Search Channel..." onkeyup="filterChannels()">
         </div>
         <div class="channel-list" id="channelList">
-            <div class="loading-text">চ্যানেল লোড হচ্ছে...</div>
+            <div class="status-msg">Loading Bangla channels...</div>
         </div>
     </div>
 
@@ -62,8 +62,8 @@
         // আপনার Vercel প্রক্সি লিংক
         const vercelProxy = "https://online-tv-rho.vercel.app/api/proxy?url=";
 
-        // আপনার বাংলা JSON ফাইলের লিংক বা লোকাল পাথ এখানে দিন (যেমন: "bangla.json" বা "https://example.com/bangla.json")
-        const jsonUrl = "bangla.json"; 
+        // GitHub রিপোজিটরির dada ফোল্ডারের bangla.json পাথ
+        const jsonUrl = "dada/bangla.json";
 
         let channels = [];
         let currentStreamUrl = "";
@@ -72,35 +72,37 @@
         let clapprPlayerInstance = null;
 
         document.addEventListener("DOMContentLoaded", () => {
-            fetchChannelsFromJson();
+            loadBanglaJson();
         });
 
-        // JSON থেকে চ্যানেল কল করার ফাংশন
-        async function fetchChannelsFromJson() {
+        async function loadBanglaJson() {
             const channelListDiv = document.getElementById('channelList');
             try {
                 const response = await fetch(jsonUrl);
-                if (!response.ok) throw new Error("JSON লোড হতে সমস্যা হয়েছে");
-                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
                 const data = await response.json();
-                
-                // JSON-এর বিভিন্ন ফরম্যাট (name/title, url/link/stream, logo/image) সাপোর্ট করার জন্য ম্যাপ করা হলো
-                const rawList = Array.isArray(data) ? data : (data.channels || []);
-                channels = rawList.map(ch => ({
-                    name: ch.name || ch.title || ch.channel_name || "Unknown Channel",
-                    url: ch.url || ch.link || ch.stream || ch.stream_url || "",
-                    logo: ch.logo || ch.image || ch.icon || "https://via.placeholder.com/35?text=TV"
-                })).filter(ch => ch.url !== "");
+                const rawList = Array.isArray(data)
+                    ? data
+                    : (data.channels || data.data || []);
+
+                channels = rawList.map(item => ({
+                    name: item.name || item.title || item.channel || "Unknown Channel",
+                    url: item.url || item.link || item.stream || item.stream_url || "",
+                    logo: item.logo || item.image || item.icon || "https://via.placeholder.com/35?text=TV"
+                })).filter(item => item.url);
 
                 if (channels.length > 0) {
                     renderChannels(channels);
                     playChannel(channels[0].url);
                 } else {
-                    channelListDiv.innerHTML = `<div class="loading-text">কোনো চ্যানেল পাওয়া যায়নি!</div>`;
+                    channelListDiv.innerHTML = `<div class="status-msg">bangla.json এ কোনো চ্যানেল পাওয়া যায়নি।</div>`;
                 }
-            } catch (error) {
-                console.error("JSON Fetch Error:", error);
-                channelListDiv.innerHTML = `<div class="loading-text" style="color:#f87171;">JSON ফাইল লোড করতে ব্যর্থ হয়েছে! লিংক বা ফাইল পাথ চেক করুন।</div>`;
+            } catch (err) {
+                console.error("JSON Load Error:", err);
+                channelListDiv.innerHTML = `<div class="status-msg" style="color:#f87171;">bangla.json লোড করা যায়নি। পাথ বা JSON ফরম্যাট চেক করুন।</div>`;
             }
         }
 
@@ -111,8 +113,8 @@
             list.forEach((ch, index) => {
                 const item = document.createElement('div');
                 item.className = 'channel-item';
-                if(index === 0) item.classList.add('active');
-                
+                if (index === 0) item.classList.add('active');
+
                 item.onclick = () => {
                     document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
                     item.classList.add('active');
@@ -134,18 +136,27 @@
         }
 
         function playChannel(rawStreamUrl) {
+            // Vercel প্রক্সির মাধ্যমে ভিডিও লিংক সিকিউর করা হচ্ছে
             currentStreamUrl = vercelProxy + encodeURIComponent(rawStreamUrl);
             loadStream(currentStreamUrl);
         }
 
         function loadStream(proxiedUrl) {
             const rawVideo = document.getElementById('videoPlayer');
-            
-            if (hlsInstance) hlsInstance.destroy();
-            if (clapprPlayerInstance) clapprPlayerInstance.destroy();
+
+            if (hlsInstance) {
+                hlsInstance.destroy();
+                hlsInstance = null;
+            }
+            if (clapprPlayerInstance) {
+                clapprPlayerInstance.destroy();
+                clapprPlayerInstance = null;
+            }
 
             if (currentEngine === 'clappr') {
-                document.getElementById('videoPlayer').style.display = 'none';
+                rawVideo.pause();
+                rawVideo.removeAttribute('src');
+                rawVideo.style.display = 'none';
                 document.getElementById('clapprPlayer').style.display = 'block';
 
                 clapprPlayerInstance = new Clappr.Player({
@@ -155,9 +166,14 @@
                     width: '100%',
                     height: '100%'
                 });
+            } else if (currentEngine === 'html5') {
+                document.getElementById('clapprPlayer').style.display = 'none';
+                rawVideo.style.display = 'block';
+                rawVideo.src = proxiedUrl;
+                rawVideo.play().catch(() => {});
             } else {
                 document.getElementById('clapprPlayer').style.display = 'none';
-                document.getElementById('videoPlayer').style.display = 'block';
+                rawVideo.style.display = 'block';
 
                 if (Hls.isSupported()) {
                     hlsInstance = new Hls({
@@ -170,7 +186,7 @@
                     hlsInstance.loadSource(proxiedUrl);
                     hlsInstance.attachMedia(rawVideo);
                     hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-                        rawVideo.play();
+                        rawVideo.play().catch(() => {});
                     });
 
                     hlsInstance.on(Hls.Events.ERROR, (event, data) => {
@@ -190,7 +206,7 @@
                     });
                 } else if (rawVideo.canPlayType('application/vnd.apple.mpegurl')) {
                     rawVideo.src = proxiedUrl;
-                    rawVideo.play();
+                    rawVideo.play().catch(() => {});
                 }
             }
         }
