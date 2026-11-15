@@ -9,11 +9,12 @@
     <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.11.12/shaka-player.compiled.js"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background-color: #0f172a; color: #f8fafc; display: flex; height: 100vh; overflow: hidden; }
-        .sidebar { width: 320px; background-color: #1e293b; display: flex; flex-direction: column; border-right: 1px solid #334155; }
+        .sidebar { width: 330px; background-color: #1e293b; display: flex; flex-direction: column; border-right: 1px solid #334155; }
         .sidebar-header { padding: 15px; background-color: #0f172a; border-bottom: 1px solid #334155; }
         .sidebar-header h2 { font-size: 1.2rem; color: #38bdf8; margin-bottom: 10px; }
         .search-box { width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background-color: #1e293b; color: #fff; outline: none; margin-bottom: 10px; }
@@ -24,6 +25,7 @@
         .channel-item { display: flex; align-items: center; padding: 10px; margin-bottom: 6px; background-color: #334155; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
         .channel-item:hover, .channel-item.active { background-color: #0284c7; }
         .channel-item img { width: 35px; height: 35px; object-fit: contain; margin-right: 10px; background: #0f172a; border-radius: 4px; padding: 2px; flex-shrink: 0; }
+        .channel-emoji { width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; margin-right: 10px; background: #0f172a; border-radius: 4px; font-size: 1rem; flex-shrink: 0; }
         .channel-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
         .channel-name { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .channel-tag { font-size: 0.72rem; color: #bae6fd; margin-top: 2px; }
@@ -51,7 +53,7 @@
             </div>
         </div>
         <div class="channel-list" id="channelList">
-            <div class="status-msg">Loading Bangla & Sports channels...</div>
+            <div class="status-msg">Loading channels...</div>
         </div>
     </div>
 
@@ -62,7 +64,7 @@
         </div>
 
         <div class="controls-panel">
-            <button class="btn active" id="btnVideoJs" onclick="switchEngine('videojs')">Main (Hls/Video)</button>
+            <button class="btn active" id="btnVideoJs" onclick="switchEngine('videojs')">Main (HLS/DASH)</button>
             <button class="btn" id="btnClappr" onclick="switchEngine('clappr')">Clappr</button>
             <button class="btn" id="btnHtml5" onclick="switchEngine('html5')">HTML5</button>
             <button class="btn" id="btnDirect" onclick="toggleProxyMode()">Proxy: ON</button>
@@ -74,7 +76,6 @@
     <script>
         const vercelProxy = "https://online-tv-rho.vercel.app/api/proxy?url=";
 
-        // Bangla এবং Sports দুটো JSON ফাইলের পাথ
         const jsonSources = [
             { url: "dada/bangla.json", category: "Bangla" },
             { url: "dada/sport.json", category: "Sports" }
@@ -82,27 +83,81 @@
 
         let channels = [];
         let selectedCategory = "ALL";
-        let rawChannelUrl = "";
+        let currentChannel = null;
         let useProxy = true;
         let currentEngine = "videojs";
         let hlsInstance = null;
         let clapprPlayerInstance = null;
+        let shakaPlayerInstance = null;
 
         document.addEventListener("DOMContentLoaded", () => {
+            if (window.shaka && shaka.polyfill) {
+                shaka.polyfill.installAll();
+            }
             loadAllChannels();
         });
+
+        // URL থেকে ClearKey এবং মূল MPD URL আলাদা করার ফাংশন
+        function parseStreamAndDrm(item) {
+            let rawUrl = (item.url || item.link || item.stream || item.stream_url || "").trim();
+            let clearKeyMap = {};
+
+            if (rawUrl.includes("|")) {
+                const parts = rawUrl.split("|");
+                rawUrl = parts[0].trim();
+                const paramStr = parts.slice(1).join("&");
+                const params = new URLSearchParams(paramStr.replace(/\|/g, "&"));
+                const license = params.get("drmLicense") || "";
+                if (license.includes(":")) {
+                    const [kid, key] = license.split(":");
+                    if (kid && key) {
+                        clearKeyMap[kid.trim()] = key.trim();
+                    }
+                }
+            }
+
+            if (item.drm && typeof item.drm.license === "string" && item.drm.license.includes(":")) {
+                const [kid, key] = item.drm.license.split(":");
+                if (kid && key) {
+                    clearKeyMap[kid.trim()] = key.trim();
+                }
+            }
+
+            const isMpd = rawUrl.toLowerCase().includes(".mpd");
+            return {
+                url: rawUrl,
+                isMpd,
+                clearKeys: Object.keys(clearKeyMap).length > 0 ? clearKeyMap : null
+            };
+        }
+
+        function resolveLogo(item) {
+            const candidates = [item.logoUrl, item.logo, item.image, item.icon, item.tvg_logo];
+            for (const c of candidates) {
+                if (typeof c === "string" && /^https?:\/\//i.test(c.trim())) {
+                    return { type: "image", value: c.trim() };
+                }
+            }
+            const fallback = (item.fallbackLogo || item.logo || "▶️").trim();
+            return { type: "emoji", value: fallback || "▶️" };
+        }
 
         function normalizeJsonItems(data, defaultCategory) {
             const rawList = Array.isArray(data)
                 ? data
                 : (data.channels || data.data || data.sports || data.bangla || []);
 
-            return rawList.map(item => ({
-                name: item.name || item.title || item.channel || item.tvg_name || "Unknown Channel",
-                url: (item.url || item.link || item.stream || item.stream_url || "").trim(),
-                logo: (item.logo || item.image || item.icon || item.tvg_logo || "").trim() || "https://via.placeholder.com/35?text=TV",
-                category: item.group || item.category || defaultCategory
-            })).filter(item => item.url);
+            return rawList.map(item => {
+                const parsed = parseStreamAndDrm(item);
+                return {
+                    name: item.name || item.title || item.channel || item.tvg_name || "Unknown Channel",
+                    url: parsed.url,
+                    isMpd: parsed.isMpd,
+                    clearKeys: parsed.clearKeys,
+                    logoData: resolveLogo(item),
+                    category: item.group || item.category || defaultCategory
+                };
+            }).filter(item => item.url);
         }
 
         async function loadAllChannels() {
@@ -127,9 +182,9 @@
 
             if (channels.length > 0) {
                 filterChannels();
-                playChannel(channels[0].url, channels[0].name);
+                playChannel(channels[0]);
             } else {
-                channelListDiv.innerHTML = `<div class="status-msg" style="color:#f87171;">bangla.json বা sport.json থেকে চ্যানেল লোড করা যায়নি।</div>`;
+                channelListDiv.innerHTML = `<div class="status-msg" style="color:#f87171;">চ্যানেল লোড করা যায়নি। JSON পাথ ও ফরম্যাট চেক করুন।</div>`;
             }
         }
 
@@ -152,21 +207,27 @@
             list.forEach((ch, index) => {
                 const item = document.createElement('div');
                 item.className = 'channel-item';
-                if (ch.url === rawChannelUrl || (index === 0 && !rawChannelUrl)) {
+                if ((currentChannel && ch.url === currentChannel.url) || (!currentChannel && index === 0)) {
                     item.classList.add('active');
                 }
 
                 item.onclick = () => {
                     document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
                     item.classList.add('active');
-                    playChannel(ch.url, ch.name);
+                    playChannel(ch);
                 };
 
+                const logoHtml = ch.logoData.type === "image"
+                    ? `<img src="${ch.logoData.value}" onerror="this.outerHTML='<div class=\\'channel-emoji\\'>▶️</div>'">`
+                    : `<div class="channel-emoji">${ch.logoData.value}</div>`;
+
+                const formatBadge = ch.isMpd ? "DASH / ClearKey" : "HLS";
+
                 item.innerHTML = `
-                    <img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/35?text=TV'">
+                    ${logoHtml}
                     <div class="channel-meta">
                         <span class="channel-name">${ch.name}</span>
-                        <span class="channel-tag">${ch.category}</span>
+                        <span class="channel-tag">${ch.category} • ${formatBadge}</span>
                     </div>
                 `;
                 channelListDiv.appendChild(item);
@@ -183,21 +244,23 @@
             renderChannels(filtered);
         }
 
-        function getFinalStreamUrl(rawUrl) {
+        function getFinalStreamUrl(channel) {
+            const rawUrl = channel.url;
             if (!useProxy) return rawUrl;
-            if (rawUrl.includes("herokuapp.com/") || rawUrl.includes("workers.dev/")) {
+            // MPD + ClearKey বা CDN/Worker লিংকে প্রক্সি লাগলে manifest/license ফেচ আটকে যেতে পারে
+            if (channel.isMpd || rawUrl.includes("herokuapp.com/") || rawUrl.includes("workers.dev/")) {
                 return rawUrl;
             }
             return vercelProxy + encodeURIComponent(rawUrl);
         }
 
-        function playChannel(streamUrl, channelName = "") {
-            rawChannelUrl = streamUrl;
-            document.getElementById('streamStatus').textContent = channelName ? `Playing: ${channelName}` : "Loading...";
-            loadStream(getFinalStreamUrl(rawChannelUrl));
+        function playChannel(channel) {
+            currentChannel = channel;
+            document.getElementById('streamStatus').textContent = `Playing: ${channel.name}`;
+            loadStream(channel);
         }
 
-        function destroyPlayers() {
+        async function destroyPlayers() {
             if (hlsInstance) {
                 hlsInstance.destroy();
                 hlsInstance = null;
@@ -206,18 +269,55 @@
                 clapprPlayerInstance.destroy();
                 clapprPlayerInstance = null;
             }
+            if (shakaPlayerInstance) {
+                await shakaPlayerInstance.destroy();
+                shakaPlayerInstance = null;
+            }
             const rawVideo = document.getElementById('videoPlayer');
             rawVideo.pause();
             rawVideo.removeAttribute('src');
             rawVideo.load();
         }
 
-        function loadStream(finalUrl) {
+        async function loadStream(channel) {
             const rawVideo = document.getElementById('videoPlayer');
             const clapprContainer = document.getElementById('clapprPlayer');
+            const finalUrl = getFinalStreamUrl(channel);
 
-            destroyPlayers();
+            await destroyPlayers();
 
+            // .mpd (ClearKey DASH) হলে Shaka Player ব্যবহার করা হবে
+            if (channel.isMpd) {
+                clapprContainer.style.display = 'none';
+                rawVideo.style.display = 'block';
+
+                if (!window.shaka || !shaka.Player.isBrowserSupported()) {
+                    document.getElementById('streamStatus').textContent = "Browser does not support DASH/ClearKey";
+                    return;
+                }
+
+                try {
+                    shakaPlayerInstance = new shaka.Player();
+                    await shakaPlayerInstance.attach(rawVideo);
+
+                    if (channel.clearKeys) {
+                        shakaPlayerInstance.configure({
+                            drm: {
+                                clearKeys: channel.clearKeys
+                            }
+                        });
+                    }
+
+                    await shakaPlayerInstance.load(finalUrl);
+                    rawVideo.play().catch(() => {});
+                } catch (err) {
+                    console.error("Shaka MPD Error:", err);
+                    document.getElementById('streamStatus').textContent = `MPD Error: ${err.message || "Blocked/CORS"}`;
+                }
+                return;
+            }
+
+            // .m3u8 / .ts (HLS) হলে আগের ইঞ্জিনগুলো চলবে
             if (currentEngine === 'clappr') {
                 rawVideo.style.display = 'none';
                 clapprContainer.style.display = 'block';
@@ -273,7 +373,7 @@
                                     document.getElementById('streamStatus').textContent = "Proxy failed, trying direct...";
                                     useProxy = false;
                                     document.getElementById('btnDirect').textContent = "Proxy: OFF";
-                                    loadStream(rawChannelUrl);
+                                    loadStream(channel);
                                 } else {
                                     hlsInstance.startLoad();
                                 }
@@ -305,13 +405,13 @@
             if (engine === 'clappr') document.getElementById('btnClappr').classList.add('active');
             if (engine === 'html5') document.getElementById('btnHtml5').classList.add('active');
 
-            if (rawChannelUrl) loadStream(getFinalStreamUrl(rawChannelUrl));
+            if (currentChannel) loadStream(currentChannel);
         }
 
         function toggleProxyMode() {
             useProxy = !useProxy;
             document.getElementById('btnDirect').textContent = useProxy ? "Proxy: ON" : "Proxy: OFF";
-            if (rawChannelUrl) loadStream(getFinalStreamUrl(rawChannelUrl));
+            if (currentChannel) loadStream(currentChannel);
         }
 
         async function togglePiP() {
