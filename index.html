@@ -30,6 +30,7 @@
         .btn:hover, .btn.active { background-color: #0284c7; }
         .btn-pip { background-color: #e11d48; }
         .status-msg { padding: 15px; text-align: center; color: #94a3b8; font-size: 0.9rem; }
+        .stream-info { margin-left: auto; font-size: 0.8rem; color: #94a3b8; max-width: 45%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
 </head>
 <body>
@@ -40,7 +41,7 @@
             <input type="text" id="searchInput" class="search-box" placeholder="Search Channel..." onkeyup="filterChannels()">
         </div>
         <div class="channel-list" id="channelList">
-            <div class="status-msg">Loading Bangla channels...</div>
+            <div class="status-msg">Loading Sports channels...</div>
         </div>
     </div>
 
@@ -51,31 +52,33 @@
         </div>
 
         <div class="controls-panel">
-            <button class="btn active" id="btnVideoJs" onclick="switchEngine('videojs')">Main (Video.js)</button>
+            <button class="btn active" id="btnVideoJs" onclick="switchEngine('videojs')">Main (Hls/Video)</button>
             <button class="btn" id="btnClappr" onclick="switchEngine('clappr')">Clappr</button>
             <button class="btn" id="btnHtml5" onclick="switchEngine('html5')">HTML5</button>
+            <button class="btn" id="btnDirect" onclick="toggleProxyMode()">Proxy: ON</button>
             <button class="btn btn-pip" onclick="togglePiP()">PIP Mode</button>
+            <span class="stream-info" id="streamStatus">Ready</span>
         </div>
     </div>
 
     <script>
-        // আপনার Vercel প্রক্সি লিংক
         const vercelProxy = "https://online-tv-rho.vercel.app/api/proxy?url=";
 
-        // GitHub রিপোজিটরির dada ফোল্ডারের bangla.json পাথ
-        const jsonUrl = "dada/bangla.json";
+        // dada ফোল্ডারের sport.json কল করা হচ্ছে
+        const jsonUrl = "dada/sport.json";
 
         let channels = [];
-        let currentStreamUrl = "";
+        let rawChannelUrl = "";
+        let useProxy = true;
         let currentEngine = "videojs";
         let hlsInstance = null;
         let clapprPlayerInstance = null;
 
         document.addEventListener("DOMContentLoaded", () => {
-            loadBanglaJson();
+            loadSportsJson();
         });
 
-        async function loadBanglaJson() {
+        async function loadSportsJson() {
             const channelListDiv = document.getElementById('channelList');
             try {
                 const response = await fetch(jsonUrl);
@@ -86,23 +89,24 @@
                 const data = await response.json();
                 const rawList = Array.isArray(data)
                     ? data
-                    : (data.channels || data.data || []);
+                    : (data.channels || data.data || data.sports || []);
 
                 channels = rawList.map(item => ({
-                    name: item.name || item.title || item.channel || "Unknown Channel",
-                    url: item.url || item.link || item.stream || item.stream_url || "",
-                    logo: item.logo || item.image || item.icon || "https://via.placeholder.com/35?text=TV"
+                    name: item.name || item.title || item.channel || item.tvg_name || "Unknown Channel",
+                    url: (item.url || item.link || item.stream || item.stream_url || "").trim(),
+                    logo: (item.logo || item.image || item.icon || item.tvg_logo || "").trim() || "https://via.placeholder.com/35?text=TV",
+                    group: item.group || item.category || ""
                 })).filter(item => item.url);
 
                 if (channels.length > 0) {
                     renderChannels(channels);
-                    playChannel(channels[0].url);
+                    playChannel(channels[0].url, channels[0].name);
                 } else {
-                    channelListDiv.innerHTML = `<div class="status-msg">bangla.json এ কোনো চ্যানেল পাওয়া যায়নি।</div>`;
+                    channelListDiv.innerHTML = `<div class="status-msg">sport.json এ কোনো চ্যানেল পাওয়া যায়নি।</div>`;
                 }
             } catch (err) {
-                console.error("JSON Load Error:", err);
-                channelListDiv.innerHTML = `<div class="status-msg" style="color:#f87171;">bangla.json লোড করা যায়নি। পাথ বা JSON ফরম্যাট চেক করুন।</div>`;
+                console.error("Sports JSON Load Error:", err);
+                channelListDiv.innerHTML = `<div class="status-msg" style="color:#f87171;">dada/sport.json লোড করা যায়নি। পাথ বা JSON ফরম্যাট চেক করুন।</div>`;
             }
         }
 
@@ -118,7 +122,7 @@
                 item.onclick = () => {
                     document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
                     item.classList.add('active');
-                    playChannel(ch.url);
+                    playChannel(ch.url, ch.name);
                 };
 
                 item.innerHTML = `
@@ -135,15 +139,22 @@
             renderChannels(filtered);
         }
 
-        function playChannel(rawStreamUrl) {
-            // Vercel প্রক্সির মাধ্যমে ভিডিও লিংক সিকিউর করা হচ্ছে
-            currentStreamUrl = vercelProxy + encodeURIComponent(rawStreamUrl);
-            loadStream(currentStreamUrl);
+        function getFinalStreamUrl(rawUrl) {
+            if (!useProxy) return rawUrl;
+            // যে লিংকগুলো ইতিমধ্যে worker/herokuapp/proxy-তে আছে সেগুলো চাইলে সরাসরি ট্রাই করা যায়
+            if (rawUrl.includes("herokuapp.com/") || rawUrl.includes("workers.dev/")) {
+                return rawUrl;
+            }
+            return vercelProxy + encodeURIComponent(rawUrl);
         }
 
-        function loadStream(proxiedUrl) {
-            const rawVideo = document.getElementById('videoPlayer');
+        function playChannel(streamUrl, channelName = "") {
+            rawChannelUrl = streamUrl;
+            document.getElementById('streamStatus').textContent = channelName ? `Playing: ${channelName}` : "Loading...";
+            loadStream(getFinalStreamUrl(rawChannelUrl));
+        }
 
+        function destroyPlayers() {
             if (hlsInstance) {
                 hlsInstance.destroy();
                 hlsInstance = null;
@@ -152,76 +163,114 @@
                 clapprPlayerInstance.destroy();
                 clapprPlayerInstance = null;
             }
+            const rawVideo = document.getElementById('videoPlayer');
+            rawVideo.pause();
+            rawVideo.removeAttribute('src');
+            rawVideo.load();
+        }
+
+        function loadStream(finalUrl) {
+            const rawVideo = document.getElementById('videoPlayer');
+            const clapprContainer = document.getElementById('clapprPlayer');
+
+            destroyPlayers();
 
             if (currentEngine === 'clappr') {
-                rawVideo.pause();
-                rawVideo.removeAttribute('src');
                 rawVideo.style.display = 'none';
-                document.getElementById('clapprPlayer').style.display = 'block';
+                clapprContainer.style.display = 'block';
+                clapprContainer.innerHTML = "";
 
                 clapprPlayerInstance = new Clappr.Player({
-                    source: proxiedUrl,
+                    source: finalUrl,
                     parentId: "#clapprPlayer",
                     autoPlay: true,
+                    mute: false,
                     width: '100%',
-                    height: '100%'
+                    height: '100%',
+                    mediacontrol: { seekbar: "#38bdf8", buttons: "#ffffff" }
                 });
-            } else if (currentEngine === 'html5') {
-                document.getElementById('clapprPlayer').style.display = 'none';
-                rawVideo.style.display = 'block';
-                rawVideo.src = proxiedUrl;
+                return;
+            }
+
+            clapprContainer.style.display = 'none';
+            rawVideo.style.display = 'block';
+
+            if (currentEngine === 'html5') {
+                rawVideo.src = finalUrl;
                 rawVideo.play().catch(() => {});
-            } else {
-                document.getElementById('clapprPlayer').style.display = 'none';
-                rawVideo.style.display = 'block';
+                return;
+            }
 
-                if (Hls.isSupported()) {
-                    hlsInstance = new Hls({
-                        maxBufferLength: 30,
-                        maxMaxBufferLength: 60,
-                        enableWorker: true,
-                        lowLatencyMode: false
-                    });
+            // Main / Video.js + Hls.js mode
+            if (Hls.isSupported()) {
+                hlsInstance = new Hls({
+                    maxBufferLength: 30,
+                    maxMaxBufferLength: 60,
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                    manifestLoadingTimeOut: 15000,
+                    manifestLoadingMaxRetry: 3,
+                    levelLoadingTimeOut: 15000,
+                    levelLoadingMaxRetry: 3,
+                    fragLoadingTimeOut: 20000,
+                    fragLoadingMaxRetry: 4
+                });
 
-                    hlsInstance.loadSource(proxiedUrl);
-                    hlsInstance.attachMedia(rawVideo);
-                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-                        rawVideo.play().catch(() => {});
-                    });
+                hlsInstance.loadSource(finalUrl);
+                hlsInstance.attachMedia(rawVideo);
 
-                    hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-                        if (data.fatal) {
-                            switch (data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR:
-                                    hlsInstance.startLoad();
-                                    break;
-                                case Hls.ErrorTypes.MEDIA_ERROR:
-                                    hlsInstance.recoverMediaError();
-                                    break;
-                                default:
-                                    hlsInstance.destroy();
-                                    break;
-                            }
-                        }
-                    });
-                } else if (rawVideo.canPlayType('application/vnd.apple.mpegurl')) {
-                    rawVideo.src = proxiedUrl;
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
                     rawVideo.play().catch(() => {});
-                }
+                });
+
+                hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                // Proxy fail করলে একবার direct url দিয়ে fallback ট্রাই করবে
+                                if (useProxy && finalUrl.startsWith(vercelProxy)) {
+                                    document.getElementById('streamStatus').textContent = "Proxy failed, trying direct...";
+                                    useProxy = false;
+                                    document.getElementById('btnDirect').textContent = "Proxy: OFF";
+                                    loadStream(rawChannelUrl);
+                                } else {
+                                    hlsInstance.startLoad();
+                                }
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hlsInstance.recoverMediaError();
+                                break;
+                            default:
+                                destroyPlayers();
+                                break;
+                        }
+                    }
+                });
+            } else if (rawVideo.canPlayType('application/vnd.apple.mpegurl')) {
+                rawVideo.src = finalUrl;
+                rawVideo.play().catch(() => {});
             }
         }
 
         function switchEngine(engine) {
             currentEngine = engine;
             document.querySelectorAll('.controls-panel .btn').forEach(b => {
-                if (!b.classList.contains('btn-pip')) b.classList.remove('active');
+                if (!b.classList.contains('btn-pip') && b.id !== 'btnDirect') {
+                    b.classList.remove('active');
+                }
             });
 
             if (engine === 'videojs') document.getElementById('btnVideoJs').classList.add('active');
             if (engine === 'clappr') document.getElementById('btnClappr').classList.add('active');
             if (engine === 'html5') document.getElementById('btnHtml5').classList.add('active');
 
-            if (currentStreamUrl) loadStream(currentStreamUrl);
+            if (rawChannelUrl) loadStream(getFinalStreamUrl(rawChannelUrl));
+        }
+
+        function toggleProxyMode() {
+            useProxy = !useProxy;
+            document.getElementById('btnDirect').textContent = useProxy ? "Proxy: ON" : "Proxy: OFF";
+            if (rawChannelUrl) loadStream(getFinalStreamUrl(rawChannelUrl));
         }
 
         async function togglePiP() {
