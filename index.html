@@ -171,8 +171,7 @@
                 jsonSources.map(async src => {
                     const res = await fetch(`${src.url}?v=${cacheBuster}`, { cache: "no-store" });
                     if (!res.ok) throw new Error(`${src.url} -> HTTP ${res.status}`);
-                    const text = await res.text();
-                    const json = JSON.parse(text);
+                    const json = await res.json();
                     return normalizeJsonItems(json, src.category);
                 })
             );
@@ -185,19 +184,19 @@
                     channels.push(...r.value);
                 } else if (r.status === "rejected") {
                     console.error("JSON Load Error:", r.reason);
-                    failedFiles.push(`${jsonSources[idx].url} (${r.reason.message || r.reason})`);
+                    failedFiles.push(`${jsonSources[idx].url}: ${r.reason.message || r.reason}`);
                 }
             });
 
             if (failedFiles.length > 0) {
-                document.getElementById('streamStatus').textContent = `Error: ${failedFiles.join(" | ")}`;
+                document.getElementById('streamStatus').textContent = `Error -> ${failedFiles.join(" | ")}`;
             }
 
             if (channels.length > 0) {
                 filterChannels();
                 playChannel(channels[0]);
             } else {
-                channelListDiv.innerHTML = `<div class="status-msg" style="color:#f87171;">চ্যানেল লোড করা যায়নি। JSON ফাইলগুলোর Syntax চেক করুন।</div>`;
+                channelListDiv.innerHTML = `<div class="status-msg" style="color:#f87171;">চ্যানেল লোড করা যায়নি। JSON ফাইল চেক করুন।</div>`;
             }
         }
 
@@ -259,7 +258,7 @@
 
         function getFinalStreamUrl(channel) {
             const rawUrl = channel.url;
-            // .mpd ফাইল কখনো প্রক্সি দিয়ে ঘোরানো হবে না, সরাসরি Shaka Player-এ যাবে
+            // .mpd ফাইল সরাসরি Shaka Player-এ যাবে
             if (channel.isMpd) return rawUrl;
             if (!useProxy) return rawUrl;
             if (rawUrl.includes("herokuapp.com/") || rawUrl.includes("workers.dev/")) {
@@ -345,7 +344,7 @@
                 return;
             }
 
-            // .m3u8 / .ts ফাইল হলে Shaka Player চলবে না
+            // .m3u8 / .ts ফাইল হলে HLS ইঞ্জিন চলবে
             if (currentEngine === 'clappr') {
                 rawVideo.style.display = 'none';
                 clapprContainer.style.display = 'block';
