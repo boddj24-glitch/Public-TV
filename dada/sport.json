@@ -3,56 +3,66 @@
     "name": "A Sports HD",
     "url": "https://tvsen6.aynaott.com/zv68oqPDu7MZZwmHhRxt/tracks-v1a1/mono.ts.m3u8",
     "logo": "https://i.postimg.cc/W1z5BGPZ/20240823_024712.png",
-    "group": ""
+    "logoUrl": "https://i.postimg.cc/W1z5BGPZ/20240823_024712.png",
+    "fallbackLogo": "▶️",
+    "category": "Sports"
   },
   {
     "name": "Cricbuzz",
     "url": "http://leone62.com/live/1119098689177/XR3icL7qGN/1404519.ts.m3u8",
     "logo": "",
-    "group": "Cricket"
+    "logoUrl": "",
+    "fallbackLogo": "▶️",
+    "category": "Cricket"
   },
   {
     "name": "Cricbuzz Cricket HD",
     "url": "https://tvsen7.aynaott.com/rEBp38Ax/index.m3u8",
     "logo": "",
-    "group": "Sports"
+    "logoUrl": "",
+    "fallbackLogo": "▶️",
+    "category": "Sports"
   },
   {
     "name": "Willow Cricbuzz 2",
     "url": "https://tvsen7.aynaott.com/Sports1/index.m3u8",
     "logo": "https://i.postimg.cc/HntSg3xw/20240823_024624.png",
-    "group": ""
+    "logoUrl": "https://i.postimg.cc/HntSg3xw/20240823_024624.png",
+    "fallbackLogo": "▶️",
+    "category": "Sports"
   },
   {
     "name": "Willow Cricket sports",
     "url": "https://warm-caverns-48629-92fab798385f.herokuapp.com/https://d36r8jifhgsk5j.cloudfront.net/Willow_TV540p.m3u8",
     "logo": "https://i.postimg.cc/HntSg3xw/20240823_024624.png",
-    "group": ""
+    "logoUrl": "https://i.postimg.cc/HntSg3xw/20240823_024624.png",
+    "fallbackLogo": "▶️",
+    "category": "Sports"
   },
   {
     "name": "Fox Sports Cricket",
     "url": "http://brinoxel.cc/live/MAG7J1SVKV/MAG776RPMZ/1405863.ts.m3u8",
     "logo": "",
-    "group": "Sports"
+    "logoUrl": "",
+    "fallbackLogo": "▶️",
+    "category": "Sports"
   },
   {
     "name": "Ten cricket",
     "url": "https://app.uckingcrazy1.workers.dev/api/play/Ten%20Cricket.m3u8",
     "logo": "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/ra2x_pQBrjBfS2_RWG9l/posters/795170c2-ec78-457e-9fa0-54a23d23361c.webp",
-    "group": ""
+    "logoUrl": "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/ra2x_pQBrjBfS2_RWG9l/posters/795170c2-ec78-457e-9fa0-54a23d23361c.webp",
+    "fallbackLogo": "▶️",
+    "category": "Sports"
   },
   {
     "name": "Tapmad Live Stream",
     "url": "https://seriealeague.akamaized.net/hls/live/2107107/A1@25853-tapmad/master.m3u8",
     "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/Tapmad_logo.png",
-    "group": "Sport"
-  }
-]
-
-{
-  "channels": [
-    
-
+    "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e0/Tapmad_logo.png",
+    "fallbackLogo": "▶️",
+    "category": "Sport"
+  },
   {
     "name": "Fussball",
     "category": "Sports",
@@ -61,10 +71,7 @@
     "url": "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/ssdefyhkkr/out/v1/cf01290cb7f64525bdf861580a016ca8/cenc.mpd|drmScheme=clearkey&drmLicense=0ad4080cdff8c60b1233b22087f0b340:285f129c5eca01dd08a5d5a14ad801c8",
     "logoUrl": "",
     "fallbackLogo": "▶️"
-  },    
-
-    
-
+  },
   {
     "name": "Fubo",
     "category": "Sports",
@@ -101,7 +108,7 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
- {
+  {
     "name": "CBS",
     "category": "Sports",
     "logo": "▶️",
@@ -209,26 +216,21 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
-    
-
-    {
+  {
     "name": "Unite8 Sports 2",
     "category": "Sports",
     "logo": "▶️",
     "tone": "blue",
     "url": "https://sm-monirul.xyz/ultra/live.php?id=unite_sp_2&sm=.m3u8",
-
     "logoUrl": "https://i.postimg.cc/Qt9Pcqt2/900.png",
     "fallbackLogo": "▶️"
   },
-
-    {
+  {
     "name": "Unite8 Sports 1",
     "category": "Sports",
     "logo": "▶️",
     "tone": "blue",
     "url": "https://sm-monirul.xyz/@monirul_Islam_SM/live.php?id=UNITI.SP.1&sm=.m3u8",
-
     "logoUrl": "https://i.postimg.cc/zvsZMcLk/Screenshot-2026-10-31-14-57-05-333-com-opera-browser-edit.jpg",
     "fallbackLogo": "▶️"
   },
@@ -258,22 +260,19 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
-
-
-{
-  "name": "EN VIVO FOX",
-  "category": "Sports",
-  "logo": "▶️",
-  "tone": "blue",
-  "url": "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/vkpoljjpkj/out/v1/502bcf68b3514cd28a220e6f0a43816f/cenc.mpd|drmScheme=clearkey&drmLicense=d1a163914db8ffad2c3e94f979896a0d:9728800a3959aafdd5b0bcfbf3768811",
-  "drm": {
-    "scheme": "clearkey",
-    "license": "d1a163914db8ffad2c3e94f979896a0d:9728800a3959aafdd5b0bcfbf3768811"
+  {
+    "name": "EN VIVO FOX",
+    "category": "Sports",
+    "logo": "▶️",
+    "tone": "blue",
+    "url": "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/vkpoljjpkj/out/v1/502bcf68b3514cd28a220e6f0a43816f/cenc.mpd|drmScheme=clearkey&drmLicense=d1a163914db8ffad2c3e94f979896a0d:9728800a3959aafdd5b0bcfbf3768811",
+    "drm": {
+      "scheme": "clearkey",
+      "license": "d1a163914db8ffad2c3e94f979896a0d:9728800a3959aafdd5b0bcfbf3768811"
+    },
+    "logoUrl": "",
+    "fallbackLogo": "▶️"
   },
-  "logoUrl": "",
-  "fallbackLogo": "▶️"
-},
-
   {
     "name": "Canal",
     "category": "Sports",
@@ -313,7 +312,6 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
-
   {
     "name": "Premier Sports",
     "category": "Sports",
@@ -353,7 +351,6 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
-
   {
     "name": "Caze tv",
     "category": "Sports",
@@ -393,7 +390,6 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
-
   {
     "name": "Sport1",
     "category": "Sports",
@@ -433,8 +429,7 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
-
- {
+  {
     "name": "Server asia",
     "category": "Sports",
     "logo": "▶️",
@@ -473,7 +468,6 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
-
   {
     "name": "TSN4 SPORTS FHD",
     "category": "Sports",
@@ -513,8 +507,7 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
-
- {
+  {
     "name": "FOX1 SPORTS FHD",
     "category": "Sports",
     "logo": "▶️",
@@ -553,7 +546,6 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   },
-
   {
     "name": "TNT2 SPORTS HD",
     "category": "Sports",
@@ -719,5 +711,4 @@
     "logoUrl": "",
     "fallbackLogo": "▶️"
   }
-  ]
-}
+]
