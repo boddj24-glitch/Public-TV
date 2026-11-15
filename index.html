@@ -16,12 +16,17 @@
         .sidebar { width: 320px; background-color: #1e293b; display: flex; flex-direction: column; border-right: 1px solid #334155; }
         .sidebar-header { padding: 15px; background-color: #0f172a; border-bottom: 1px solid #334155; }
         .sidebar-header h2 { font-size: 1.2rem; color: #38bdf8; margin-bottom: 10px; }
-        .search-box { width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background-color: #1e293b; color: #fff; outline: none; }
+        .search-box { width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background-color: #1e293b; color: #fff; outline: none; margin-bottom: 10px; }
+        .cat-tabs { display: flex; gap: 6px; }
+        .cat-btn { flex: 1; padding: 6px 8px; border: 1px solid #334155; background-color: #1e293b; color: #cbd5e1; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
+        .cat-btn.active { background-color: #0284c7; color: #fff; border-color: #0284c7; }
         .channel-list { flex: 1; overflow-y: auto; padding: 10px; }
         .channel-item { display: flex; align-items: center; padding: 10px; margin-bottom: 6px; background-color: #334155; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
         .channel-item:hover, .channel-item.active { background-color: #0284c7; }
-        .channel-item img { width: 35px; height: 35px; object-fit: contain; margin-right: 10px; background: #0f172a; border-radius: 4px; padding: 2px; }
+        .channel-item img { width: 35px; height: 35px; object-fit: contain; margin-right: 10px; background: #0f172a; border-radius: 4px; padding: 2px; flex-shrink: 0; }
+        .channel-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
         .channel-name { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .channel-tag { font-size: 0.72rem; color: #bae6fd; margin-top: 2px; }
         .main-content { flex: 1; display: flex; flex-direction: column; background-color: #0b0f19; padding: 15px; overflow-y: auto; }
         .player-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; background-color: #000; border-radius: 8px; overflow: hidden; }
         #videoPlayer, #clapprPlayer { width: 100% !important; height: 100% !important; }
@@ -39,9 +44,14 @@
         <div class="sidebar-header">
             <h2>SHAWON TV</h2>
             <input type="text" id="searchInput" class="search-box" placeholder="Search Channel..." onkeyup="filterChannels()">
+            <div class="cat-tabs">
+                <button class="cat-btn active" data-cat="ALL" onclick="selectCategory('ALL', this)">All</button>
+                <button class="cat-btn" data-cat="Bangla" onclick="selectCategory('Bangla', this)">Bangla</button>
+                <button class="cat-btn" data-cat="Sports" onclick="selectCategory('Sports', this)">Sports</button>
+            </div>
         </div>
         <div class="channel-list" id="channelList">
-            <div class="status-msg">Loading Sports channels...</div>
+            <div class="status-msg">Loading Bangla & Sports channels...</div>
         </div>
     </div>
 
@@ -64,10 +74,14 @@
     <script>
         const vercelProxy = "https://online-tv-rho.vercel.app/api/proxy?url=";
 
-        // dada ফোল্ডারের sport.json কল করা হচ্ছে
-        const jsonUrl = "dada/sport.json";
+        // Bangla এবং Sports দুটো JSON ফাইলের পাথ
+        const jsonSources = [
+            { url: "dada/bangla.json", category: "Bangla" },
+            { url: "dada/sport.json", category: "Sports" }
+        ];
 
         let channels = [];
+        let selectedCategory = "ALL";
         let rawChannelUrl = "";
         let useProxy = true;
         let currentEngine = "videojs";
@@ -75,49 +89,72 @@
         let clapprPlayerInstance = null;
 
         document.addEventListener("DOMContentLoaded", () => {
-            loadSportsJson();
+            loadAllChannels();
         });
 
-        async function loadSportsJson() {
+        function normalizeJsonItems(data, defaultCategory) {
+            const rawList = Array.isArray(data)
+                ? data
+                : (data.channels || data.data || data.sports || data.bangla || []);
+
+            return rawList.map(item => ({
+                name: item.name || item.title || item.channel || item.tvg_name || "Unknown Channel",
+                url: (item.url || item.link || item.stream || item.stream_url || "").trim(),
+                logo: (item.logo || item.image || item.icon || item.tvg_logo || "").trim() || "https://via.placeholder.com/35?text=TV",
+                category: item.group || item.category || defaultCategory
+            })).filter(item => item.url);
+        }
+
+        async function loadAllChannels() {
             const channelListDiv = document.getElementById('channelList');
-            try {
-                const response = await fetch(jsonUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+            const results = await Promise.allSettled(
+                jsonSources.map(async src => {
+                    const res = await fetch(src.url);
+                    if (!res.ok) throw new Error(`${src.url} -> HTTP ${res.status}`);
+                    const json = await res.json();
+                    return normalizeJsonItems(json, src.category);
+                })
+            );
+
+            channels = [];
+            results.forEach(r => {
+                if (r.status === "fulfilled" && Array.isArray(r.value)) {
+                    channels.push(...r.value);
+                } else if (r.status === "rejected") {
+                    console.error("JSON Load Error:", r.reason);
                 }
+            });
 
-                const data = await response.json();
-                const rawList = Array.isArray(data)
-                    ? data
-                    : (data.channels || data.data || data.sports || []);
-
-                channels = rawList.map(item => ({
-                    name: item.name || item.title || item.channel || item.tvg_name || "Unknown Channel",
-                    url: (item.url || item.link || item.stream || item.stream_url || "").trim(),
-                    logo: (item.logo || item.image || item.icon || item.tvg_logo || "").trim() || "https://via.placeholder.com/35?text=TV",
-                    group: item.group || item.category || ""
-                })).filter(item => item.url);
-
-                if (channels.length > 0) {
-                    renderChannels(channels);
-                    playChannel(channels[0].url, channels[0].name);
-                } else {
-                    channelListDiv.innerHTML = `<div class="status-msg">sport.json এ কোনো চ্যানেল পাওয়া যায়নি।</div>`;
-                }
-            } catch (err) {
-                console.error("Sports JSON Load Error:", err);
-                channelListDiv.innerHTML = `<div class="status-msg" style="color:#f87171;">dada/sport.json লোড করা যায়নি। পাথ বা JSON ফরম্যাট চেক করুন।</div>`;
+            if (channels.length > 0) {
+                filterChannels();
+                playChannel(channels[0].url, channels[0].name);
+            } else {
+                channelListDiv.innerHTML = `<div class="status-msg" style="color:#f87171;">bangla.json বা sport.json থেকে চ্যানেল লোড করা যায়নি।</div>`;
             }
+        }
+
+        function selectCategory(cat, btnEl) {
+            selectedCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+            filterChannels();
         }
 
         function renderChannels(list) {
             const channelListDiv = document.getElementById('channelList');
             channelListDiv.innerHTML = "";
 
+            if (list.length === 0) {
+                channelListDiv.innerHTML = `<div class="status-msg">কোনো চ্যানেল পাওয়া যায়নি।</div>`;
+                return;
+            }
+
             list.forEach((ch, index) => {
                 const item = document.createElement('div');
                 item.className = 'channel-item';
-                if (index === 0) item.classList.add('active');
+                if (ch.url === rawChannelUrl || (index === 0 && !rawChannelUrl)) {
+                    item.classList.add('active');
+                }
 
                 item.onclick = () => {
                     document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
@@ -127,7 +164,10 @@
 
                 item.innerHTML = `
                     <img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/35?text=TV'">
-                    <span class="channel-name">${ch.name}</span>
+                    <div class="channel-meta">
+                        <span class="channel-name">${ch.name}</span>
+                        <span class="channel-tag">${ch.category}</span>
+                    </div>
                 `;
                 channelListDiv.appendChild(item);
             });
@@ -135,13 +175,16 @@
 
         function filterChannels() {
             const query = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = channels.filter(ch => ch.name.toLowerCase().includes(query));
+            const filtered = channels.filter(ch => {
+                const matchesName = ch.name.toLowerCase().includes(query);
+                const matchesCat = selectedCategory === "ALL" || ch.category.toLowerCase().includes(selectedCategory.toLowerCase());
+                return matchesName && matchesCat;
+            });
             renderChannels(filtered);
         }
 
         function getFinalStreamUrl(rawUrl) {
             if (!useProxy) return rawUrl;
-            // যে লিংকগুলো ইতিমধ্যে worker/herokuapp/proxy-তে আছে সেগুলো চাইলে সরাসরি ট্রাই করা যায়
             if (rawUrl.includes("herokuapp.com/") || rawUrl.includes("workers.dev/")) {
                 return rawUrl;
             }
@@ -201,7 +244,6 @@
                 return;
             }
 
-            // Main / Video.js + Hls.js mode
             if (Hls.isSupported()) {
                 hlsInstance = new Hls({
                     maxBufferLength: 30,
@@ -227,7 +269,6 @@
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                // Proxy fail করলে একবার direct url দিয়ে fallback ট্রাই করবে
                                 if (useProxy && finalUrl.startsWith(vercelProxy)) {
                                     document.getElementById('streamStatus').textContent = "Proxy failed, trying direct...";
                                     useProxy = false;
