@@ -1,574 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pb Sports Tv — Live Match Center</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.11.6/shaka-player.compiled.min.js"></script>
-  <style>
-    :root {
-      --bg: #060a13;
-      --surface: #0c1220;
-      --card-border: #14532d;
-      --live-glow: rgba(16, 185, 129, 0.25);
-      --accent: #f97316;
-      --live-red: #ef4444;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-    }
-
-- { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      padding-bottom: 85px;
-    }
-
-    .topbar {
-      background: var(--surface);
-      border-bottom: 1px solid #1e293b;
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-    }
-    .brand {
-      font-weight: 800;
-      letter-spacing: 0.6px;
-      color: #f8fafc;
-      font-size: 16px;
-    }
-    .brand span { color: var(--accent); }
-
-    .container {
-      max-width: 1100px;
-      margin: 14px auto;
-      padding: 0 12px;
-    }
-
-    /* Player Box */
-    .player-box {
-      display: none;
-      width: 100%;
-      background: var(--surface);
-      border-radius: 14px;
-      overflow: hidden;
-      border: 1px solid #1e293b;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65);
-      margin-bottom: 16px;
-    }
-    .player-box.active { display: block; }
-
-    .stage-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      background: #0f172a;
-      border-bottom: 1px solid #1e293b;
-    }
-    .stage-title {
-      font-size: 14px;
-      font-weight: 800;
-      color: #f8fafc;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .live-pill {
-      background: var(--live-red);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 800;
-      padding: 3px 8px;
-      border-radius: 999px;
-      flex-shrink: 0;
-    }
-
-    /* Rolling Bangla Notice Above Video */
-    .bn-marquee-wrap {
-      overflow: hidden;
-      white-space: nowrap;
-      padding: 8px 0;
-      background: rgba(249, 115, 22, 0.14);
-      border-bottom: 1px solid rgba(249, 115, 22, 0.28);
-    }
-    .bn-marquee-track {
-      display: inline-flex;
-      gap: 48px;
-      padding-left: 100%;
-      animation: rollText 14s linear infinite;
-    }
-    .bn-marquee-item {
-      font-size: 15px;
-      font-weight: 800;
-      color: #ffedd5;
-    }
-    @keyframes rollText {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-100%); }
-    }
-
-    .player-error {
-      padding: 8px 12px;
-      background: #2a1215;
-      color: #fca5a5;
-      font-size: 12px;
-      display: none;
-    }
-
-    .player-box video {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      max-height: 520px;
-      display: block;
-      background: #000;
-    }
-
-    /* Bottom Player Bar (Like palashbari-plex) */
-    .bottom-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      padding: 10px 14px;
-      background: #0f172a;
-      border-top: 1px solid #1e293b;
-    }
-    .bar-group {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .bar-btn {
-      background: #1e293b;
-      color: #f1f5f9;
-      border: 1px solid #334155;
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .bar-btn.active,
-    .bar-btn:hover {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
-
-    /* Filter Tabs */
-    .tabs {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
-    }
-    .tab-btn {
-      background: #161f33;
-      color: #cbd5e1;
-      border: 1px solid #28354f;
-      padding: 7px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-    .tab-btn.active {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-
-    /* Match Cards */
-    .match-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .match-card {
-      background: linear-gradient(90deg, #091a16 0%, #0b1320 50%, #091a16 100%);
-      border: 1.5px solid var(--card-border);
-      border-radius: 10px;
-      padding: 14px 18px;
-      cursor: pointer;
-      transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
-      position: relative;
-    }
-    .match-card:hover {
-      transform: translateY(-2px);
-      border-color: #10b981;
-      box-shadow: 0 6px 20px var(--live-glow);
-    }
-    .hot-badge {
-      position: absolute;
-      top: -9px;
-      left: 14px;
-      background: #052e16;
-      border: 1px solid #16a34a;
-      color: #4ade80;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 1px 7px;
-      border-radius: 6px;
-    }
-    .card-top {
-      text-align: center;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.4px;
-      color: #e2e8f0;
-      margin-bottom: 10px;
-      text-transform: uppercase;
-    }
-    .card-body {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      gap: 12px;
-    }
-    .team {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 700;
-      font-size: 15px;
-    }
-    .team.right {
-      justify-content: flex-end;
-      text-align: right;
-    }
-    .team img {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      object-fit: contain;
-      background: #0f172a;
-      padding: 3px;
-      border: 1px solid rgba(255,255,255,0.12);
-    }
-    .center-status {
-      text-align: center;
-      min-width: 110px;
-    }
-    .live-indicator {
-      color: var(--live-red);
-      font-weight: 800;
-      font-size: 13px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-    }
-    .pulse-dot {
-      width: 10px;
-      height: 10px;
-      background: var(--live-red);
-      border-radius: 50%;
-      animation: pulse 1.2s infinite;
-    }
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-      70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-    }
-    .upcoming-text {
-      color: #cbd5e1;
-      font-weight: 700;
-      font-size: 13px;
-    }
-    .sub-time {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    .bottom-nav {
-      position: fixed;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #111827;
-      border: 1px solid #334155;
-      border-radius: 30px;
-      padding: 6px 14px;
-      display: flex;
-      gap: 14px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
-      z-index: 60;
-    }
-    .nav-item {
-      background: none;
-      border: none;
-      color: #e2e8f0;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 6px 12px;
-      border-radius: 20px;
-    }
-    .nav-item.active {
-      background: #fff;
-      color: #0f172a;
-    }
-
-    @media (max-width: 600px) {
-      .team { font-size: 13px; gap: 6px; }
-      .team img { width: 28px; height: 28px; }
-      .center-status { min-width: 85px; }
-    }
-  </style>
+  <meta charset="utf-8">
+  <title>Shaka Player - MPD / M3U8 (DRM & Non-DRM)</title>
+  <!-- Shaka Player compiled library -->
+  <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
 </head>
 <body>
 
-  <div class="topbar">
-    <div class="brand">Pb Sports <span>Tv</span></div>
-    <div style="font-size: 12px; color: #94a3b8;" id="clock"></div>
-  </div>
-
-  <div class="container">
-    <div class="player-box" id="playerBox">
-      <div class="stage-head">
-        <div class="stage-title" id="stageTitle">Pb Sports Tv</div>
-        <span class="live-pill">LIVE</span>
-      </div>
-
-      <div class="bn-marquee-wrap">
-        <div class="bn-marquee-track">
-          <span class="bn-marquee-item">চ্যানেল প্লে হতে ১০ সেকেন্ড অপেক্ষা করুন</span>
-          <span class="bn-marquee-item">চ্যানেল প্লে হতে ১০ সেকেন্ড অপেক্ষা করুন</span>
-          <span class="bn-marquee-item">চ্যানেল প্লে হতে ১০ সেকেন্ড অপেক্ষা করুন</span>
-        </div>
-      </div>
-
-      <div class="player-error" id="playerError"></div>
-      <video id="videoPlayer" controls autoplay muted playsinline></video>
-
-      <div class="bottom-bar">
-        <div class="bar-group">
-          <button class="bar-btn active">Main (Shaka)</button>
-        </div>
-        <div class="bar-group" id="qualityBar">
-          <button class="bar-btn active" onclick="setQuality('auto', this)">Auto</button>
-        </div>
-        <div class="bar-group">
-          <button class="bar-btn" onclick="togglePiP()">PIP Mode</button>
-          <button class="bar-btn" onclick="toggleFullscreen()">Fullscreen</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="tabs" id="filterTabs"></div>
-    <div class="match-list" id="matchList"></div>
-  </div>
-
-  <div class="bottom-nav">
-    <button class="nav-item active" onclick="setFilter('all', this)">🏠 Live</button>
-    <button class="nav-item" onclick="setFilter('live', this)">📺 Binedon</button>
-    <button class="nav-item" onclick="setFilter('upcoming', this)">📡 IPTV</button>
-  </div>
+  <!-- সাধারণ HTML video ট্যাগ (কন্ট্রোলসহ) -->
+  <video id="video" width="640" autoplay controls></video>
 
   <script>
-    const MATCHES = [
+    // আগের কোড থেকে আসা স্ট্রিম এবং DRM ইনফরমেশন
+    const STREAMS = [
       {
-        id: "willow-1",
-        hot: true,
-        sport: "CRICKET",
-        matchTitle: "LIVE CRICKET — WILLOW SPORTS",
-        channelName: "Willow Sports",
-        teamA: { name: "Willow", logo: "https://i.postimg.cc/HntSg3xw/20240823_024624.png" },
-        teamB: { name: "Sports HD", logo: "https://i.postimg.cc/HntSg3xw/20240823_024624.png" },
-        start: "2026-11-17T18:00:00+06:00",
-        end:   "2026-11-18T02:00:00+06:00",
+        name: "Willow Sports",
         url: "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/tll6uwepxa/out/v1/a7f67cbb33df46539312956427343886/cenc.mpd",
+        useDrm: true,
         clearKeys: {
           "290e09c837da78d5cd961978d390515c": "b748836c71e6a4ca68ef5b5652db6247"
         }
       },
       {
-        id: "laliga-1",
-        hot: true,
-        sport: "FOOTBALL",
-        matchTitle: "LA LIGA HD LIVE",
-        channelName: "Laliga HD",
-        teamA: { name: "Laliga", logo: "https://i.postimg.cc/v8JPQjFK/laliga.png" },
-        teamB: { name: "HD Live", logo: "https://i.postimg.cc/v8JPQjFK/laliga.png" },
-        start: "2026-11-17T20:00:00+06:00",
-        end:   "2026-11-18T04:00:00+06:00",
+        name: "Laliga HD",
         url: "https://abfjk4haaaaaaaampv6ofhkihi4r6.bia-cf.live.pv-cdn.net/iad-nitro/live/clients/dash/enc/m6sqanvm2m/out/v1/f6beb46c6e9a4132ad739f3ca27df6aa/cenc.mpd",
+        useDrm: true,
         clearKeys: {
           "1444f4235529f183f0a5a486befe9cdb": "e5e3fec67a1bb3472a2089c8a0a2557f"
         }
       },
       {
-        id: "fancode-1",
-        hot: true,
-        sport: "SPORTS",
-        matchTitle: "FANCODE 1 LIVE STREAM",
-        channelName: "FANCODE 1",
-        teamA: { name: "FanCode", logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png" },
-        teamB: { name: "Stream 1", logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png" },
-        start: "2026-11-17T21:00:00+06:00",
-        end:   "2026-11-18T05:00:00+06:00",
-        url: "https://example.com/live/sample.m3u8"
+        name: "FANCODE 1",
+        url: "https://example.com/live/sample.m3u8",
+        useDrm: false,
+        clearKeys: {}
       }
     ];
 
-    let currentFilter = "all";
-    let shakaPlayer = null;
-    const videoEl = document.getElementById("videoPlayer");
+    // কোন স্ট্রিম চালু হবে তা এখান থেকে ঠিক করুন (0 = Willow Sports, 1 = Laliga HD, 2 = FANCODE 1)
+    const activeIndex = 0;
+    const streamConfig = STREAMS[activeIndex];
 
-    function buildQualityBar() {
-      const bar = document.getElementById("qualityBar");
-      bar.innerHTML = `<button class="bar-btn active" onclick="setQuality('auto', this)">Auto</button>`;
-      if (!shakaPlayer) return;
-      const heights = [...new Set(shakaPlayer.getVariantTracks().map(t => t.height).filter(Boolean))].sort((a, b) => b - a);
-      heights.forEach(h => {
-        const btn = document.createElement("button");
-        btn.className = "bar-btn";
-        btn.textContent = `${h}p`;
-        btn.onclick = () => setQuality(h, btn);
-        bar.appendChild(btn);
-      });
-    }
+    async function initApp() {
+      // ব্রাউজার কম্প্যাটিবিলিটির জন্য পলিবিল ইনস্টল করা
+      shaka.polyfill.installAll();
 
-    function setQuality(val, btn) {
-      document.querySelectorAll("#qualityBar .bar-btn").forEach(b => b.classList.remove("active"));
-      if (btn) btn.classList.add("active");
-      if (!shakaPlayer) return;
-      if (val === "auto") {
-        shakaPlayer.configure({ abr: { enabled: true } });
-        return;
-      }
-      shakaPlayer.configure({ abr: { enabled: false } });
-      const track = shakaPlayer.getVariantTracks().find(t => String(t.height) === String(val));
-      if (track) shakaPlayer.selectVariantTrack(track, true);
-    }
+      if (shaka.Player.isBrowserSupported()) {
+        const video = document.getElementById('video');
+        const player = new shaka.Player(video);
 
-    async function togglePiP() {
-      try {
-        if (document.pictureInPictureElement) await document.exitPictureInPicture();
-        else if (document.pictureInPictureEnabled) await videoEl.requestPictureInPicture();
-      } catch (_) {}
-    }
-
-    function toggleFullscreen() {
-      const box = document.getElementById("playerBox");
-      if (!document.fullscreenElement) box.requestFullscreen?.().catch(() => {});
-      else document.exitFullscreen?.().catch(() => {});
-    }
-
-    function getMatchStatus(match, now = new Date()) {
-      const start = new Date(match.start);
-      const end = new Date(match.end);
-      if (now >= start && now <= end) return "live";
-      if (now < start) return "upcoming";
-      return "recent";
-    }
-
-    function render() {
-      const now = new Date();
-      document.getElementById("clock").textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-      const enriched = MATCHES.map(m => ({ ...m, status: getMatchStatus(m, now) }));
-      const counts = {
-        all: enriched.length,
-        live: enriched.filter(m => m.status === "live").length,
-        recent: enriched.filter(m => m.status === "recent").length,
-        upcoming: enriched.filter(m => m.status === "upcoming").length,
-      };
-
-      document.getElementById("filterTabs").innerHTML = `
-        <button class="tab-btn ${currentFilter === 'all' ? 'active' : ''}" onclick="setFilter('all')">All (${counts.all})</button>
-        <button class="tab-btn ${currentFilter === 'live' ? 'active' : ''}" onclick="setFilter('live')">Live (${counts.live})</button>
-        <button class="tab-btn ${currentFilter === 'recent' ? 'active' : ''}" onclick="setFilter('recent')">Recent (${counts.recent})</button>
-        <button class="tab-btn ${currentFilter === 'upcoming' ? 'active' : ''}" onclick="setFilter('upcoming')">Upcoming (${counts.upcoming})</button>
-      `;
-
-      const filtered = currentFilter === "all" ? enriched : enriched.filter(m => m.status === currentFilter);
-
-      document.getElementById("matchList").innerHTML = filtered.map(m => {
-        const startStr = new Date(m.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const centerHtml = m.status === "live"
-          ? `<div class="live-indicator"><div class="pulse-dot"></div>Live</div>`
-          : m.status === "upcoming"
-          ? `<div class="upcoming-text">Upcoming</div><div class="sub-time">Starts ${startStr}</div>`
-          : `<div class="upcoming-text" style="color:#64748b;">Ended</div>`;
-
-        return `
-          <div class="match-card" onclick="playMatch('${m.id}')">
-            ${m.hot ? `<div class="hot-badge">HOT 🔥</div>` : ""}
-            <div class="card-top">🏏 ${m.sport} | ${m.matchTitle}</div>
-            <div class="card-body">
-              <div class="team">
-                <img src="${m.teamA.logo}" alt="${m.teamA.name}">
-                <span>${m.teamA.name}</span>
-              </div>
-              <div class="center-status">${centerHtml}</div>
-              <div class="team right">
-                <span>${m.teamB.name}</span>
-                <img src="${m.teamB.logo}" alt="${m.teamB.name}">
-              </div>
-            </div>
-          </div>
-        `;
-      }).join("");
-    }
-
-    function setFilter(filter, navBtn = null) {
-      currentFilter = filter;
-      if (navBtn) {
-        document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
-        navBtn.classList.add("active");
-      }
-      render();
-    }
-
-    async function playMatch(id) {
-      const match = MATCHES.find(m => m.id === id);
-      if (!match) return;
-
-      const box = document.getElementById("playerBox");
-      const errBox = document.getElementById("playerError");
-      document.getElementById("stageTitle").textContent = `${match.channelName} — ${match.matchTitle}`;
-      errBox.style.display = "none";
-
-      box.classList.add("active");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-
-      try {
-        if (shakaPlayer) {
-          await shakaPlayer.destroy();
-          shakaPlayer = null;
-        }
-        shaka.polyfill.installAll();
-        shakaPlayer = new shaka.Player(videoEl);
-
-        shakaPlayer.configure({
-          drm: {
-            clearKeys: match.clearKeys || {}
-          }
+        // এরর হ্যান্ডলিং
+        player.addEventListener('error', (event) => {
+          console.error('Error code', event.detail.code, 'object', event.detail);
         });
 
-        await shakaPlayer.load(match.url);
-        buildQualityBar();
-        videoEl.play().catch(() => {});
-      } catch (e) {
-        errBox.style.display = "block";
-        errBox.textContent = "Stream error: " + (e.message || e);
+        // যদি ClearKey DRM থাকে, তবে কনফিগারেশন যোগ করা
+        if (streamConfig.useDrm && Object.keys(streamConfig.clearKeys).length > 0) {
+          player.configure({
+            drm: {
+              clearKeys: streamConfig.clearKeys
+            }
+          });
+        }
+
+        try {
+          // স্ট্রিম লোড করা (লিংকটি .mpd হোক বা .m3u8, Shaka প্লেয়ার অটো ডিটেক্ট করবে)
+          await player.load(streamConfig.url);
+          console.log('Stream loaded successfully:', streamConfig.name);
+        } catch (e) {
+          console.error('Error loading stream', e);
+        }
+      } else {
+        console.error('Browser not supported!');
       }
     }
 
-    render();
-    setInterval(render, 15000);
+    document.addEventListener('DOMContentLoaded', initApp);
   </script>
+
 </body>
 </html>
