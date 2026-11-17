@@ -3,188 +3,111 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pb Sports Tv — OTT Live</title>
+  <title>Pb Sports Tv — Live Match Center</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.11.6/shaka-player.compiled.min.js"></script>
   <style>
     :root {
-      --bg: #050811;
-      --panel: #0d1424;
-      --panel-2: #131c31;
-      --border: rgba(148, 163, 184, 0.14);
-      --accent: #ff5a1f;
-      --accent-soft: rgba(255, 90, 31, 0.18);
-      --live: #ff2e4c;
-      --text: #f8fafc;
+      --bg: #060a13;
+      --surface: #0c1220;
+      --card-border: #14532d;
+      --live-glow: rgba(16, 185, 129, 0.25);
+      --accent: #f97316;
+      --live-red: #ef4444;
+      --text: #f1f5f9;
       --muted: #94a3b8;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
 
     body {
-      background: radial-gradient(circle at top, #111b33 0%, var(--bg) 52%);
+      background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
-      padding-bottom: 90px;
+      padding-bottom: 85px;
     }
 
-    /* OTT Top Navbar */
-    .ott-nav {
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid #1e293b;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       position: sticky;
       top: 0;
       z-index: 50;
-      backdrop-filter: blur(14px);
-      background: rgba(5, 8, 17, 0.82);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 18px;
+    }
+    .brand {
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      color: #f8fafc;
+      font-size: 16px;
+    }
+    .brand span { color: var(--accent); }
+
+    .container {
+      max-width: 1100px;
+      margin: 14px auto;
+      padding: 0 12px;
+    }
+
+    /* Player Box */
+    .player-box {
+      display: none;
+      width: 100%;
+      background: var(--surface);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65);
+      margin-bottom: 16px;
+    }
+    .player-box.active { display: block; }
+
+    .stage-head {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-    }
-    .ott-logo {
-      display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 18px;
-      font-weight: 900;
-      letter-spacing: 0.4px;
-    }
-    .ott-logo-mark {
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #ff5a1f, #ff8a00);
-      display: grid;
-      place-items: center;
-      font-size: 13px;
-      color: #fff;
-      box-shadow: 0 4px 14px rgba(255, 90, 31, 0.4);
-    }
-    .ott-logo span { color: var(--accent); }
-    .ott-clock {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--muted);
-      background: var(--panel);
-      border: 1px solid var(--border);
-      padding: 5px 10px;
-      border-radius: 999px;
-    }
-
-    .wrap {
-      max-width: 1120px;
-      margin: 16px auto;
-      padding: 0 14px;
-    }
-
-    /* =====================================================
-       OTT CINEMA PLAYER STAGE
-       ===================================================== */
-    .ott-stage {
-      display: none;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      overflow: hidden;
-      margin-bottom: 20px;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
-    }
-    .ott-stage.active { display: block; }
-
-    .stage-meta-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      background: linear-gradient(90deg, rgba(255,90,31,0.12) 0%, rgba(13,20,36,0.95) 45%);
-      border-bottom: 1px solid var(--border);
-    }
-    .stage-channel {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-    .stage-channel img {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
-      object-fit: contain;
-      background: #080d18;
-      padding: 4px;
-      border: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .stage-text { min-width: 0; }
-    .stage-sub {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--accent);
+      padding: 10px 14px;
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
     }
     .stage-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
-      color: #fff;
+      color: #f8fafc;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
-    .live-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(255, 46, 76, 0.16);
-      border: 1px solid rgba(255, 46, 76, 0.45);
-      color: #ff6b81;
+    .live-pill {
+      background: var(--live-red);
+      color: #fff;
       font-size: 11px;
       font-weight: 800;
-      padding: 5px 10px;
+      padding: 3px 8px;
       border-radius: 999px;
       flex-shrink: 0;
     }
-    .live-chip .dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--live);
-      animation: pulse 1.1s infinite;
-    }
 
-    /* Rolling Bangla Notice Strip Above Video */
+    /* Rolling Bangla Notice Above Video */
     .bn-marquee-wrap {
       overflow: hidden;
       white-space: nowrap;
-      padding: 10px 0;
-      background: linear-gradient(90deg, rgba(255, 90, 31, 0.2), rgba(255, 138, 0, 0.14), rgba(255, 90, 31, 0.2));
-      border-bottom: 1px solid rgba(255, 90, 31, 0.32);
-      position: relative;
+      padding: 8px 0;
+      background: rgba(249, 115, 22, 0.14);
+      border-bottom: 1px solid rgba(249, 115, 22, 0.28);
     }
     .bn-marquee-track {
       display: inline-flex;
-      align-items: center;
       gap: 48px;
       padding-left: 100%;
       animation: rollText 14s linear infinite;
     }
-    .bn-marquee-wrap:hover .bn-marquee-track {
-      animation-play-state: paused;
-    }
     .bn-marquee-item {
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 800;
-      color: #fff7ed;
-      letter-spacing: 0.2px;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .bn-marquee-item::before {
-      content: "●";
-      color: var(--accent);
-      font-size: 12px;
+      color: #ffedd5;
     }
     @keyframes rollText {
       0% { transform: translateX(0); }
@@ -192,284 +115,234 @@
     }
 
     .player-error {
-      padding: 9px 16px;
-      background: rgba(239, 68, 68, 0.16);
-      border-bottom: 1px solid rgba(239, 68, 68, 0.35);
-      color: #fecaca;
+      padding: 8px 12px;
+      background: #2a1215;
+      color: #fca5a5;
       font-size: 12px;
       display: none;
     }
 
-    .stage-video-wrap {
-      position: relative;
-      background: #000;
-    }
-    .stage-video-wrap video {
+    .player-box video {
       width: 100%;
       aspect-ratio: 16 / 9;
-      max-height: 540px;
+      max-height: 520px;
       display: block;
       background: #000;
     }
 
-    /* Center Loading Spinner */
-    .center-loader {
-      position: absolute;
-      inset: 0;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      padding: 16px;
-      background: rgba(5, 8, 17, 0.62);
-      pointer-events: none;
-      z-index: 10;
-    }
-    .center-loader.show {
-      display: flex;
-    }
-    .loader-circle {
-      width: 54px;
-      height: 54px;
-      border: 5px solid rgba(255, 255, 255, 0.18);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    .loader-text {
-      font-size: 16px;
-      font-weight: 800;
-      color: #ffffff;
-      text-align: center;
-      background: rgba(13, 20, 36, 0.92);
-      padding: 8px 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 90, 31, 0.45);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    @media (max-width: 600px) {
-      .bn-marquee-item { font-size: 15px; }
-      .loader-text { font-size: 14px; padding: 7px 14px; }
-    }
-
-    /* =====================================================
-       OTT FILTER PILLS & MATCH SHELF
-       ===================================================== */
-    .shelf-header {
+    /* Bottom Player Bar (Like palashbari-plex) */
+    .bottom-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .shelf-title {
-      font-size: 16px;
-      font-weight: 800;
-      letter-spacing: 0.3px;
-    }
-    .filter-pills {
-      display: flex;
       gap: 8px;
       flex-wrap: wrap;
+      padding: 10px 14px;
+      background: #0f172a;
+      border-top: 1px solid #1e293b;
     }
-    .pill-btn {
-      background: var(--panel);
-      color: var(--muted);
-      border: 1px solid var(--border);
-      padding: 6px 14px;
-      border-radius: 999px;
+    .bar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .bar-btn {
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid #334155;
+      padding: 5px 10px;
+      border-radius: 6px;
       font-size: 12px;
       font-weight: 700;
       cursor: pointer;
-      transition: 0.18s;
     }
-    .pill-btn.active {
+    .bar-btn.active,
+    .bar-btn:hover {
       background: var(--accent);
       border-color: var(--accent);
       color: #fff;
-      box-shadow: 0 4px 14px var(--accent-soft);
     }
 
-    .ott-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 14px;
+    /* Filter Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
     }
-    .ott-card {
-      background: linear-gradient(160deg, var(--panel-2) 0%, var(--panel) 100%);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 15px;
+    .tab-btn {
+      background: #161f33;
+      color: #cbd5e1;
+      border: 1px solid #28354f;
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
-      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+      transition: 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Match Cards */
+    .match-list {
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      gap: 14px;
+      gap: 12px;
     }
-    .ott-card:hover {
-      transform: translateY(-3px);
-      border-color: rgba(255, 90, 31, 0.55);
-      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+    .match-card {
+      background: linear-gradient(90deg, #091a16 0%, #0b1320 50%, #091a16 100%);
+      border: 1.5px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
+      position: relative;
     }
-    .card-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
+    .match-card:hover {
+      transform: translateY(-2px);
+      border-color: #10b981;
+      box-shadow: 0 6px 20px var(--live-glow);
     }
-    .sport-tag {
+    .hot-badge {
+      position: absolute;
+      top: -9px;
+      left: 14px;
+      background: #052e16;
+      border: 1px solid #16a34a;
+      color: #4ade80;
       font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.7px;
-      text-transform: uppercase;
-      color: #cbd5e1;
-      background: rgba(255, 255, 255, 0.06);
-      padding: 4px 9px;
-      border-radius: 6px;
-    }
-    .status-pill {
-      font-size: 11px;
-      font-weight: 800;
-      padding: 3px 9px;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .status-pill.live {
-      background: rgba(255, 46, 76, 0.18);
-      color: #ff6b81;
-    }
-    .status-pill.live .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--live);
-      animation: pulse 1.1s infinite;
-    }
-    .status-pill.upcoming {
-      background: rgba(56, 189, 248, 0.14);
-      color: #7dd3fc;
-    }
-    .status-pill.recent {
-      background: rgba(148, 163, 184, 0.14);
-      color: #94a3b8;
-    }
-
-    .card-match-title {
-      font-size: 14px;
-      font-weight: 800;
-      color: #f8fafc;
-      margin-top: 6px;
-    }
-
-    .vs-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(5, 8, 17, 0.55);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
-    }
-    .vs-team {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      font-size: 13px;
       font-weight: 700;
-    }
-    .vs-team.end { flex-direction: row-reverse; text-align: right; }
-    .vs-team img {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
-      object-fit: contain;
-      background: #0b1220;
-      padding: 3px;
-    }
-    .vs-badge {
-      font-size: 11px;
-      font-weight: 900;
-      color: var(--accent);
-      background: var(--accent-soft);
-      padding: 4px 8px;
+      padding: 1px 7px;
       border-radius: 6px;
     }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(255, 46, 76, 0.7); }
-      70% { box-shadow: 0 0 0 7px rgba(255, 46, 76, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(255, 46, 76, 0); }
-    }
-
-    /* Bottom Floating Dock */
-    .bottom-dock {
-      position: fixed;
-      bottom: 14px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(13, 20, 36, 0.92);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 6px 12px;
-      display: flex;
-      gap: 8px;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65);
-      z-index: 60;
-    }
-    .dock-btn {
-      background: transparent;
-      border: none;
-      color: var(--muted);
+    .card-top {
+      text-align: center;
       font-size: 12px;
       font-weight: 700;
-      padding: 7px 14px;
-      border-radius: 999px;
-      cursor: pointer;
+      letter-spacing: 0.4px;
+      color: #e2e8f0;
+      margin-bottom: 10px;
+      text-transform: uppercase;
     }
-    .dock-btn.active {
+    .card-body {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 12px;
+    }
+    .team {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .team.right {
+      justify-content: flex-end;
+      text-align: right;
+    }
+    .team img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      object-fit: contain;
+      background: #0f172a;
+      padding: 3px;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .center-status {
+      text-align: center;
+      min-width: 110px;
+    }
+    .live-indicator {
+      color: var(--live-red);
+      font-weight: 800;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      background: var(--live-red);
+      border-radius: 50%;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    .upcoming-text {
+      color: #cbd5e1;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .sub-time {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #111827;
+      border: 1px solid #334155;
+      border-radius: 30px;
+      padding: 6px 14px;
+      display: flex;
+      gap: 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      z-index: 60;
+    }
+    .nav-item {
+      background: none;
+      border: none;
+      color: #e2e8f0;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+    .nav-item.active {
       background: #fff;
-      color: #050811;
+      color: #0f172a;
+    }
+
+    @media (max-width: 600px) {
+      .team { font-size: 13px; gap: 6px; }
+      .team img { width: 28px; height: 28px; }
+      .center-status { min-width: 85px; }
     }
   </style>
 </head>
 <body>
 
-  <header class="ott-nav">
-    <div class="ott-logo">
-      <div class="ott-logo-mark">PB</div>
-      <div>Pb Sports <span>Tv</span></div>
-    </div>
-    <div class="ott-clock" id="clock"></div>
-  </header>
+  <div class="topbar">
+    <div class="brand">Pb Sports <span>Tv</span></div>
+    <div style="font-size: 12px; color: #94a3b8;" id="clock"></div>
+  </div>
 
-  <main class="wrap">
-    <!-- OTT Cinema Player Stage -->
-    <section class="ott-stage" id="ottStage">
-      <div class="stage-meta-bar">
-        <div class="stage-channel">
-          <img id="stageLogo" src="" alt="" />
-          <div class="stage-text">
-            <div class="stage-sub" id="stageChannel">LIVE STREAM</div>
-            <div class="stage-title" id="stageTitle">Match Title</div>
-          </div>
-        </div>
-        <div class="live-chip"><span class="dot"></span>LIVE</div>
+  <div class="container">
+    <div class="player-box" id="playerBox">
+      <div class="stage-head">
+        <div class="stage-title" id="stageTitle">Pb Sports Tv</div>
+        <span class="live-pill">LIVE</span>
       </div>
 
-      <!-- Rolling Bangla Notice Strip Above Video -->
       <div class="bn-marquee-wrap">
         <div class="bn-marquee-track">
-          <span class="bn-marquee-item">চ্যানেল প্লে হতে ১০ সেকেন্ড অপেক্ষা করুন</span>
           <span class="bn-marquee-item">চ্যানেল প্লে হতে ১০ সেকেন্ড অপেক্ষা করুন</span>
           <span class="bn-marquee-item">চ্যানেল প্লে হতে ১০ সেকেন্ড অপেক্ষা করুন</span>
           <span class="bn-marquee-item">চ্যানেল প্লে হতে ১০ সেকেন্ড অপেক্ষা করুন</span>
@@ -477,30 +350,31 @@
       </div>
 
       <div class="player-error" id="playerError"></div>
+      <video id="videoPlayer" controls autoplay muted playsinline></video>
 
-      <div class="stage-video-wrap">
-        <div class="center-loader" id="centerLoader">
-          <div class="loader-circle"></div>
-          <div class="loader-text">চ্যানেল প্লে হতে ১০ সেকেন্ড অপেক্ষা করুন</div>
+      <div class="bottom-bar">
+        <div class="bar-group">
+          <button class="bar-btn active">Main (Shaka)</button>
         </div>
-        <video id="videoPlayer" controls autoplay muted playsinline></video>
+        <div class="bar-group" id="qualityBar">
+          <button class="bar-btn active" onclick="setQuality('auto', this)">Auto</button>
+        </div>
+        <div class="bar-group">
+          <button class="bar-btn" onclick="togglePiP()">PIP Mode</button>
+          <button class="bar-btn" onclick="toggleFullscreen()">Fullscreen</button>
+        </div>
       </div>
-    </section>
-
-    <!-- Match Shelf -->
-    <div class="shelf-header">
-      <div class="shelf-title">Live &amp; Upcoming Broadcasts</div>
-      <div class="filter-pills" id="filterPills"></div>
     </div>
 
-    <div class="ott-grid" id="matchGrid"></div>
-  </main>
+    <div class="tabs" id="filterTabs"></div>
+    <div class="match-list" id="matchList"></div>
+  </div>
 
-  <nav class="bottom-dock">
-    <button class="dock-btn active" onclick="setFilter('all', this)">🏠 Home</button>
-    <button class="dock-btn" onclick="setFilter('live', this)">📺 Binedon</button>
-    <button class="dock-btn" onclick="setFilter('upcoming', this)">📡 IPTV</button>
-  </nav>
+  <div class="bottom-nav">
+    <button class="nav-item active" onclick="setFilter('all', this)">🏠 Live</button>
+    <button class="nav-item" onclick="setFilter('live', this)">📺 Binedon</button>
+    <button class="nav-item" onclick="setFilter('upcoming', this)">📡 IPTV</button>
+  </div>
 
   <script>
     const MATCHES = [
@@ -510,7 +384,6 @@
         sport: "CRICKET",
         matchTitle: "LIVE CRICKET — WILLOW SPORTS",
         channelName: "Willow Sports",
-        logo: "https://i.postimg.cc/HntSg3xw/20240823_024624.png",
         teamA: { name: "Willow", logo: "https://i.postimg.cc/HntSg3xw/20240823_024624.png" },
         teamB: { name: "Sports HD", logo: "https://i.postimg.cc/HntSg3xw/20240823_024624.png" },
         start: "2026-11-17T18:00:00+06:00",
@@ -526,7 +399,6 @@
         sport: "FOOTBALL",
         matchTitle: "LA LIGA HD LIVE",
         channelName: "Laliga HD",
-        logo: "https://i.postimg.cc/v8JPQjFK/laliga.png",
         teamA: { name: "Laliga", logo: "https://i.postimg.cc/v8JPQjFK/laliga.png" },
         teamB: { name: "HD Live", logo: "https://i.postimg.cc/v8JPQjFK/laliga.png" },
         start: "2026-11-17T20:00:00+06:00",
@@ -542,7 +414,6 @@
         sport: "SPORTS",
         matchTitle: "FANCODE 1 LIVE STREAM",
         channelName: "FANCODE 1",
-        logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png",
         teamA: { name: "FanCode", logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png" },
         teamB: { name: "Stream 1", logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png" },
         start: "2026-11-17T21:00:00+06:00",
@@ -553,12 +424,46 @@
 
     let currentFilter = "all";
     let shakaPlayer = null;
-
-    const loaderEl = document.getElementById("centerLoader");
     const videoEl = document.getElementById("videoPlayer");
 
-    function showLoader(show) {
-      loaderEl.classList.toggle("show", show);
+    function buildQualityBar() {
+      const bar = document.getElementById("qualityBar");
+      bar.innerHTML = `<button class="bar-btn active" onclick="setQuality('auto', this)">Auto</button>`;
+      if (!shakaPlayer) return;
+      const heights = [...new Set(shakaPlayer.getVariantTracks().map(t => t.height).filter(Boolean))].sort((a, b) => b - a);
+      heights.forEach(h => {
+        const btn = document.createElement("button");
+        btn.className = "bar-btn";
+        btn.textContent = `${h}p`;
+        btn.onclick = () => setQuality(h, btn);
+        bar.appendChild(btn);
+      });
+    }
+
+    function setQuality(val, btn) {
+      document.querySelectorAll("#qualityBar .bar-btn").forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+      if (!shakaPlayer) return;
+      if (val === "auto") {
+        shakaPlayer.configure({ abr: { enabled: true } });
+        return;
+      }
+      shakaPlayer.configure({ abr: { enabled: false } });
+      const track = shakaPlayer.getVariantTracks().find(t => String(t.height) === String(val));
+      if (track) shakaPlayer.selectVariantTrack(track, true);
+    }
+
+    async function togglePiP() {
+      try {
+        if (document.pictureInPictureElement) await document.exitPictureInPicture();
+        else if (document.pictureInPictureEnabled) await videoEl.requestPictureInPicture();
+      } catch (_) {}
+    }
+
+    function toggleFullscreen() {
+      const box = document.getElementById("playerBox");
+      if (!document.fullscreenElement) box.requestFullscreen?.().catch(() => {});
+      else document.exitFullscreen?.().catch(() => {});
     }
 
     function getMatchStatus(match, now = new Date()) {
@@ -581,53 +486,48 @@
         upcoming: enriched.filter(m => m.status === "upcoming").length,
       };
 
-      document.getElementById("filterPills").innerHTML = `
-        <button class="pill-btn ${currentFilter === 'all' ? 'active' : ''}" onclick="setFilter('all')">All (${counts.all})</button>
-        <button class="pill-btn ${currentFilter === 'live' ? 'active' : ''}" onclick="setFilter('live')">Live (${counts.live})</button>
-        <button class="pill-btn ${currentFilter === 'recent' ? 'active' : ''}" onclick="setFilter('recent')">Recent (${counts.recent})</button>
-        <button class="pill-btn ${currentFilter === 'upcoming' ? 'active' : ''}" onclick="setFilter('upcoming')">Upcoming (${counts.upcoming})</button>
+      document.getElementById("filterTabs").innerHTML = `
+        <button class="tab-btn ${currentFilter === 'all' ? 'active' : ''}" onclick="setFilter('all')">All (${counts.all})</button>
+        <button class="tab-btn ${currentFilter === 'live' ? 'active' : ''}" onclick="setFilter('live')">Live (${counts.live})</button>
+        <button class="tab-btn ${currentFilter === 'recent' ? 'active' : ''}" onclick="setFilter('recent')">Recent (${counts.recent})</button>
+        <button class="tab-btn ${currentFilter === 'upcoming' ? 'active' : ''}" onclick="setFilter('upcoming')">Upcoming (${counts.upcoming})</button>
       `;
 
       const filtered = currentFilter === "all" ? enriched : enriched.filter(m => m.status === currentFilter);
 
-      document.getElementById("matchGrid").innerHTML = filtered.map(m => {
+      document.getElementById("matchList").innerHTML = filtered.map(m => {
         const startStr = new Date(m.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const badgeHtml = m.status === "live"
-          ? `<span class="status-pill live"><span class="dot"></span>LIVE</span>`
+        const centerHtml = m.status === "live"
+          ? `<div class="live-indicator"><div class="pulse-dot"></div>Live</div>`
           : m.status === "upcoming"
-          ? `<span class="status-pill upcoming">${startStr}</span>`
-          : `<span class="status-pill recent">Ended</span>`;
+          ? `<div class="upcoming-text">Upcoming</div><div class="sub-time">Starts ${startStr}</div>`
+          : `<div class="upcoming-text" style="color:#64748b;">Ended</div>`;
 
         return `
-          <article class="ott-card" onclick="playMatch('${m.id}')">
-            <div>
-              <div class="card-head">
-                <span class="sport-tag">${m.sport}</span>
-                ${badgeHtml}
-              </div>
-              <div class="card-match-title">${m.matchTitle}</div>
-            </div>
-            <div class="vs-row">
-              <div class="vs-team">
+          <div class="match-card" onclick="playMatch('${m.id}')">
+            ${m.hot ? `<div class="hot-badge">HOT 🔥</div>` : ""}
+            <div class="card-top">🏏 ${m.sport} | ${m.matchTitle}</div>
+            <div class="card-body">
+              <div class="team">
                 <img src="${m.teamA.logo}" alt="${m.teamA.name}">
                 <span>${m.teamA.name}</span>
               </div>
-              <span class="vs-badge">VS</span>
-              <div class="vs-team end">
-                <img src="${m.teamB.logo}" alt="${m.teamB.name}">
+              <div class="center-status">${centerHtml}</div>
+              <div class="team right">
                 <span>${m.teamB.name}</span>
+                <img src="${m.teamB.logo}" alt="${m.teamB.name}">
               </div>
             </div>
-          </article>
+          </div>
         `;
       }).join("");
     }
 
-    function setFilter(filter, dockBtn = null) {
+    function setFilter(filter, navBtn = null) {
       currentFilter = filter;
-      if (dockBtn) {
-        document.querySelectorAll(".dock-btn").forEach(b => b.classList.remove("active"));
-        dockBtn.classList.add("active");
+      if (navBtn) {
+        document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+        navBtn.classList.add("active");
       }
       render();
     }
@@ -636,16 +536,12 @@
       const match = MATCHES.find(m => m.id === id);
       if (!match) return;
 
-      const stage = document.getElementById("ottStage");
+      const box = document.getElementById("playerBox");
       const errBox = document.getElementById("playerError");
-
-      document.getElementById("stageLogo").src = match.logo;
-      document.getElementById("stageChannel").textContent = match.channelName;
-      document.getElementById("stageTitle").textContent = match.matchTitle;
+      document.getElementById("stageTitle").textContent = `${match.channelName} — ${match.matchTitle}`;
       errBox.style.display = "none";
 
-      stage.classList.add("active");
-      showLoader(true);
+      box.classList.add("active");
       window.scrollTo({ top: 0, behavior: "smooth" });
 
       try {
@@ -663,17 +559,13 @@
         });
 
         await shakaPlayer.load(match.url);
-        await videoEl.play().catch(() => {});
-        showLoader(false);
+        buildQualityBar();
+        videoEl.play().catch(() => {});
       } catch (e) {
-        showLoader(false);
         errBox.style.display = "block";
         errBox.textContent = "Stream error: " + (e.message || e);
       }
     }
-
-    videoEl.addEventListener("waiting", () => showLoader(true));
-    videoEl.addEventListener("playing", () => showLoader(false));
 
     render();
     setInterval(render, 15000);
