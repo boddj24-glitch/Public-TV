@@ -165,7 +165,7 @@
         <button onclick="closePlayer()" style="background:#1e293b;color:#fff;border:1px solid #334155;padding:3px 8px;border-radius:4px;cursor:pointer;">Close</button>
       </div>
 
-      <!-- চ্যানেল লোড নোটিস: প্লে শুরু হলে হাইড হয়ে যাবে -->
+      <!-- চ্যানেল লোড নোটিস: প্লে শুরু হলে হাইড হয়ে যাবে -->
       <div class="channel-wait-notice" id="channelWaitNotice">
         চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন
       </div>
@@ -199,53 +199,118 @@
   </div>
 
   <script>
-    const STREAMS = [
-      {
-        name: "Willow Sports",
-        hot: true,
-        sport: "CRICKET",
-        matchTitle: "BANGLADESH VS SOUTH AFRICA",
-        status: "live",
-        teamA: { name: "Bangladesh", logo: "https://flagcdn.com/w80/bd.png" },
-        teamB: { name: "South Africa", logo: "https://flagcdn.com/w80/za.png" },
-        url: "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/tll6uwepxa/out/v1/a7f67cbb33df46539312956427343886/cenc.mpd",
-        useDrm: true,
-        clearKeys: {
-          "290e09c837da78d5cd961978d390515c": "b748836c71e6a4ca68ef5b5652db6247"
-        }
-      },
-      {
-        name: "Laliga HD",
-        hot: true,
-        sport: "FOOTBALL",
-        matchTitle: "SAFF CHAMPIONSHIP 2026",
-        status: "live",
-        teamA: { name: "SAFF", logo: "https://i.postimg.cc/v8JPQjFK/laliga.png" },
-        teamB: { name: "SAFF", logo: "https://i.postimg.cc/v8JPQjFK/laliga.png" },
-        url: "https://abfjk4haaaaaaaampv6ofhkihi4r6.bia-cf.live.pv-cdn.net/iad-nitro/live/clients/dash/enc/m6sqanvm2m/out/v1/f6beb46c6e9a4132ad739f3ca27df6aa/cenc.mpd",
-        useDrm: true,
-        clearKeys: {
-          "1444f4235529f183f0a5a486befe9cdb": "e5e3fec67a1bb3472a2089c8a0a2557f"
-        }
-      },
-      {
-        name: "FANCODE 1",
-        hot: true,
-        sport: "CRICKET",
-        matchTitle: "ABU DHABI T10 LEAGUE",
-        status: "upcoming",
-        teamA: { name: "T10", logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png" },
-        teamB: { name: "T10", logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png" },
-        url: "https://example.com/live/sample.m3u8",
-        useDrm: false,
-        clearKeys: {}
-      }
-    ];
+    // GitHub Repo (boddj24-glitch/Public-TV) থেকে sport.json ও sport.m3u কল করা হবে
+    const SPORT_JSON_URL = "./sport.json";
+    const SPORT_M3U_URL = "./sport.m3u";
 
+    let STREAMS = [];
     let activeIndex = 0;
     let currentTab = "all";
     let shakaInstance = null;
     let selectedResolution = "auto";
+
+    function parsePipeDrm(rawUrl, clearKeys = {}) {
+      if (!rawUrl) return { url: "", useDrm: false, clearKeys: {} };
+      const [cleanUrl, queryPart] = rawUrl.split("|");
+      const parsedKeys = { ...clearKeys };
+      if (queryPart) {
+        const params = new URLSearchParams(queryPart.replace(/&drmLicense=/g, "&drmLicense="));
+        const license = params.get("drmLicense");
+        if (license && license.includes(":")) {
+          const [kid, key] = license.split(":");
+          if (kid && key) parsedKeys[kid.trim()] = key.trim();
+        }
+      }
+      return {
+        url: cleanUrl.trim(),
+        useDrm: Object.keys(parsedKeys).length > 0,
+        clearKeys: parsedKeys
+      };
+    }
+
+    function normalizeJsonItem(item, index = 0) {
+      const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
+      const logo = item.logoUrl || item.tvgLogo || item.teamA?.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
+      return {
+        name: item.name || `Channel ${index + 1}`,
+        hot: item.hot ?? true,
+        sport: (item.sport || item.category || "SPORTS").toUpperCase(),
+        matchTitle: item.matchTitle || item.name || `Channel ${index + 1}`,
+        status: item.status || "live",
+        teamA: item.teamA || { name: item.name || "Team A", logo },
+        teamB: item.teamB || { name: item.category || "LIVE", logo },
+        url: drmInfo.url,
+        useDrm: Boolean(item.useDrm || drmInfo.useDrm),
+        clearKeys: Object.keys(item.clearKeys || {}).length > 0 ? item.clearKeys : drmInfo.clearKeys
+      };
+    }
+
+    function parseM3uText(m3uText) {
+      const lines = m3uText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const items = [];
+      let currentMeta = null;
+
+      for (const line of lines) {
+        if (line.startsWith("#EXTINF:")) {
+          const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
+          const groupMatch = line.match(/group-title="([^"]*)"/i);
+          const commaIdx = line.lastIndexOf(",");
+          const title = commaIdx !== -1 ? line.slice(commaIdx + 1).trim() : "Live Channel";
+          currentMeta = {
+            name: title,
+            sport: (groupMatch?.[1] || "SPORTS").toUpperCase(),
+            matchTitle: title,
+            status: "live",
+            logo: logoMatch?.[1] || ""
+          };
+        } else if (!line.startsWith("#") && currentMeta) {
+          const drmInfo = parsePipeDrm(line);
+          const logo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
+          items.push({
+            name: currentMeta.name,
+            hot: true,
+            sport: currentMeta.sport,
+            matchTitle: currentMeta.matchTitle,
+            status: currentMeta.status,
+            teamA: { name: currentMeta.name, logo },
+            teamB: { name: "LIVE", logo },
+            url: drmInfo.url,
+            useDrm: drmInfo.useDrm,
+            clearKeys: drmInfo.clearKeys
+          });
+          currentMeta = null;
+        }
+      }
+      return items;
+    }
+
+    async function loadStreamsFromFiles() {
+      const combined = [];
+
+      try {
+        const jsonRes = await fetch(SPORT_JSON_URL, { cache: "no-store" });
+        if (jsonRes.ok) {
+          const jsonData = await jsonRes.json();
+          const arr = Array.isArray(jsonData) ? jsonData : (jsonData.streams || []);
+          arr.forEach((item, idx) => combined.push(normalizeJsonItem(item, idx)));
+        }
+      } catch (e) {
+        console.warn("sport.json load failed:", e);
+      }
+
+      try {
+        const m3uRes = await fetch(SPORT_M3U_URL, { cache: "no-store" });
+        if (m3uRes.ok) {
+          const m3uText = await m3uRes.text();
+          combined.push(...parseM3uText(m3uText));
+        }
+      } catch (e) {
+        console.warn("sport.m3u load failed:", e);
+      }
+
+      STREAMS = combined;
+      renderMatches();
+    }
 
     function showWaitNotice() {
       const notice = document.getElementById("channelWaitNotice");
@@ -385,6 +450,7 @@
     }
 
     async function initApp(streamConfig = STREAMS[activeIndex]) {
+      if (!streamConfig || !streamConfig.url) return;
       shaka.polyfill.installAll();
 
       if (shaka.Player.isBrowserSupported()) {
@@ -504,15 +570,16 @@
       `).join("");
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const video = document.getElementById('video');
       video.addEventListener('playing', hideWaitNotice);
       video.addEventListener('waiting', showWaitNotice);
 
-      renderMatches();
       renderResolutionMenu();
       updateLiveTimeCounter();
       setInterval(updateLiveTimeCounter, 1000);
+
+      await loadStreamsFromFiles();
     });
   </script>
 </body>
