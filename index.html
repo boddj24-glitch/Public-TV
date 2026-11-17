@@ -10,6 +10,8 @@
   <style>
     :root {
       --bg: #060a13;
+      --surface: #0c1220;
+      --surface-2: #111827;
       --card-border: #14532d;
       --live-glow: rgba(16, 185, 129, 0.25);
       --accent: #f97316;
@@ -27,7 +29,7 @@
     }
 
     .topbar {
-      background: #0c1220;
+      background: var(--surface);
       border-bottom: 1px solid #1e293b;
       padding: 12px 16px;
       display: flex;
@@ -51,20 +53,22 @@
       padding: 0 12px;
     }
 
-    /* Clean Video Only Player */
-    .player-box {
+    /* ======================================================
+       OTT STYLE PLAYER SHELL (Clean Video + Dock Bar Below)
+       ====================================================== */
+    .ott-player-shell {
       display: none;
       width: 100%;
-      background: #000;
+      background: var(--surface);
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid #1e293b;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.7);
       margin-bottom: 16px;
     }
-    .player-box.active { display: block; }
+    .ott-player-shell.active { display: block; }
 
-    .player-box video {
+    .ott-player-shell video {
       width: 100%;
       aspect-ratio: 16 / 9;
       max-height: 520px;
@@ -73,11 +77,99 @@
     }
 
     .player-error {
-      padding: 8px 12px;
+      padding: 8px 14px;
       background: #2a1215;
       color: #fca5a5;
       font-size: 12px;
       display: none;
+    }
+
+    .ott-dock {
+      background: linear-gradient(180deg, #0f172a 0%, #0b1120 100%);
+      border-top: 1px solid #1e293b;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .ott-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .ott-live-badge {
+      background: var(--live-red);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+      letter-spacing: 0.4px;
+    }
+    .ott-live-dot {
+      width: 6px;
+      height: 6px;
+      background: #fff;
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    .ott-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f8fafc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ott-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ott-btn {
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid #334155;
+      padding: 6px 11px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .ott-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .ott-btn.close {
+      background: rgba(239, 68, 68, 0.16);
+      border-color: rgba(239, 68, 68, 0.45);
+      color: #fca5a5;
+    }
+    .ott-btn.close:hover {
+      background: var(--live-red);
+      border-color: var(--live-red);
+      color: #fff;
+    }
+    .ott-select {
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid #334155;
+      padding: 6px 9px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
     }
 
     /* Filter Tabs */
@@ -252,9 +344,25 @@
   </div>
 
   <div class="container">
-    <div class="player-box" id="playerBox">
+    <!-- OTT Style Single Player Shell -->
+    <div class="ott-player-shell" id="playerBox">
       <div class="player-error" id="playerError"></div>
       <video id="videoPlayer" controls autoplay muted playsinline preload="auto"></video>
+      <div class="ott-dock">
+        <div class="ott-info">
+          <span class="ott-live-badge"><span class="ott-live-dot"></span>LIVE</span>
+          <span class="ott-title" id="ottMatchTitle">Pb Sports Tv</span>
+        </div>
+        <div class="ott-actions">
+          <button class="ott-btn" id="playPauseBtn" onclick="togglePlay()">⏸ Pause</button>
+          <button class="ott-btn" id="muteBtn" onclick="toggleMute()">🔇 Unmute</button>
+          <select class="ott-select" id="qualitySelect" onchange="changeQuality(this.value)">
+            <option value="auto">Auto</option>
+          </select>
+          <button class="ott-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+          <button class="ott-btn close" onclick="closePlayer()">✕ Close</button>
+        </div>
+      </div>
     </div>
 
     <div class="tabs" id="filterTabs"></div>
@@ -324,6 +432,16 @@
       const video = document.getElementById("videoPlayer");
       shakaPlayer = new shaka.Player(video);
 
+      video.addEventListener("play", () => {
+        document.getElementById("playPauseBtn").textContent = "⏸ Pause";
+      });
+      video.addEventListener("pause", () => {
+        document.getElementById("playPauseBtn").textContent = "▶ Play";
+      });
+      video.addEventListener("volumechange", () => {
+        document.getElementById("muteBtn").textContent = video.muted ? "🔇 Unmute" : "🔊 Mute";
+      });
+
       shakaPlayer.addEventListener("error", async (event) => {
         const detail = event.detail;
         if (detail && detail.severity === shaka.util.Error.Severity.CRITICAL && activeMatchId) {
@@ -374,13 +492,61 @@
         },
         abr: {
           enabled: true,
-          // শুরুতে HD-তে না গিয়ে হালকা স্পিড ধরে চালু হবে, পরে নেট স্পিড বুঝে ধাপে ধাপে শিফট করবে
           defaultBandwidthEstimate: 250000,
           switchInterval: 8,
           bandwidthDowngradeTarget: 0.85,
           bandwidthUpgradeTarget: 0.55
         }
       });
+    }
+
+    function populateQualities() {
+      const select = document.getElementById("qualitySelect");
+      select.innerHTML = `<option value="auto">Auto</option>`;
+      if (!shakaPlayer) return;
+      const heights = [...new Set(shakaPlayer.getVariantTracks().map(t => t.height).filter(Boolean))].sort((a, b) => b - a);
+      heights.forEach(h => {
+        const opt = document.createElement("option");
+        opt.value = h;
+        opt.textContent = `${h}p`;
+        select.appendChild(opt);
+      });
+    }
+
+    function changeQuality(val) {
+      if (!shakaPlayer) return;
+      if (val === "auto") {
+        shakaPlayer.configure({ abr: { enabled: true } });
+        return;
+      }
+      shakaPlayer.configure({ abr: { enabled: false } });
+      const track = shakaPlayer.getVariantTracks().find(t => String(t.height) === String(val));
+      if (track) shakaPlayer.selectVariantTrack(track, true);
+    }
+
+    function togglePlay() {
+      const video = document.getElementById("videoPlayer");
+      if (video.paused) video.play().catch(() => {});
+      else video.pause();
+    }
+
+    function toggleMute() {
+      const video = document.getElementById("videoPlayer");
+      video.muted = !video.muted;
+    }
+
+    function toggleFullscreen() {
+      const box = document.getElementById("playerBox");
+      if (!document.fullscreenElement) box.requestFullscreen?.().catch(() => {});
+      else document.exitFullscreen?.().catch(() => {});
+    }
+
+    async function closePlayer() {
+      activeMatchId = null;
+      const video = document.getElementById("videoPlayer");
+      video.pause();
+      if (shakaPlayer) await shakaPlayer.unload();
+      document.getElementById("playerBox").classList.remove("active");
     }
 
     function getMatchStatus(match, now = new Date()) {
@@ -457,6 +623,7 @@
       const box = document.getElementById("playerBox");
       const video = document.getElementById("videoPlayer");
       const errBox = document.getElementById("playerError");
+      document.getElementById("ottMatchTitle").textContent = `${match.channelName} — ${match.matchTitle}`;
       errBox.style.display = "none";
 
       box.classList.add("active");
@@ -469,6 +636,7 @@
 
         video.muted = true;
         await player.load(match.url);
+        populateQualities();
         await video.play();
         video.muted = false;
       } catch (e) {
