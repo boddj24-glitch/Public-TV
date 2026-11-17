@@ -199,7 +199,7 @@
   </div>
 
   <script>
-    // GitHub Repo (boddj24-glitch/Public-TV) থেকে sport.json ও sport.m3u কল করা হবে
+    // GitHub Repo (boddj24-glitch/Public-TV) রুট থেকে sport.json ও sport.m3u কল করা হবে
     const SPORT_JSON_URL = "./sport.json";
     const SPORT_M3U_URL = "./sport.m3u";
 
@@ -210,7 +210,9 @@
     let selectedResolution = "auto";
 
     function parsePipeDrm(rawUrl, clearKeys = {}) {
-      if (!rawUrl) return { url: "", useDrm: false, clearKeys: {} };
+      if (!rawUrl || typeof rawUrl !== "string") {
+        return { url: "", useDrm: false, clearKeys: {} };
+      }
       const [cleanUrl, queryPart] = rawUrl.split("|");
       const parsedKeys = { ...clearKeys };
       if (queryPart) {
@@ -222,7 +224,7 @@
         }
       }
       return {
-        url: cleanUrl.trim(),
+        url: (cleanUrl || "").trim(),
         useDrm: Object.keys(parsedKeys).length > 0,
         clearKeys: parsedKeys
       };
@@ -263,21 +265,25 @@
             status: "live",
             logo: logoMatch?.[1] || ""
           };
-        } else if (!line.startsWith("#") && currentMeta) {
+        } else if (line.startsWith("#EXT")) {
+          continue;
+        } else if (currentMeta) {
           const drmInfo = parsePipeDrm(line);
-          const logo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
-          items.push({
-            name: currentMeta.name,
-            hot: true,
-            sport: currentMeta.sport,
-            matchTitle: currentMeta.matchTitle,
-            status: currentMeta.status,
-            teamA: { name: currentMeta.name, logo },
-            teamB: { name: "LIVE", logo },
-            url: drmInfo.url,
-            useDrm: drmInfo.useDrm,
-            clearKeys: drmInfo.clearKeys
-          });
+          if (drmInfo.url) {
+            const logo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
+            items.push({
+              name: currentMeta.name,
+              hot: true,
+              sport: currentMeta.sport,
+              matchTitle: currentMeta.matchTitle,
+              status: currentMeta.status,
+              teamA: { name: currentMeta.name, logo },
+              teamB: { name: "LIVE", logo },
+              url: drmInfo.url,
+              useDrm: drmInfo.useDrm,
+              clearKeys: drmInfo.clearKeys
+            });
+          }
           currentMeta = null;
         }
       }
@@ -292,7 +298,10 @@
         if (jsonRes.ok) {
           const jsonData = await jsonRes.json();
           const arr = Array.isArray(jsonData) ? jsonData : (jsonData.streams || []);
-          arr.forEach((item, idx) => combined.push(normalizeJsonItem(item, idx)));
+          arr.forEach((item, idx) => {
+            const normalized = normalizeJsonItem(item, idx);
+            if (normalized.url) combined.push(normalized);
+          });
         }
       } catch (e) {
         console.warn("sport.json load failed:", e);
@@ -312,9 +321,13 @@
       renderMatches();
     }
 
-    function showWaitNotice() {
+    function showWaitNotice(customText) {
       const notice = document.getElementById("channelWaitNotice");
-      if (notice) notice.style.display = "block";
+      if (!notice) return;
+      notice.textContent = typeof customText === "string"
+        ? customText
+        : "চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন";
+      notice.style.display = "block";
     }
 
     function hideWaitNotice() {
@@ -456,7 +469,9 @@
       if (shaka.Player.isBrowserSupported()) {
         const video = document.getElementById('video');
         if (shakaInstance) {
-          await shakaInstance.destroy();
+          try {
+            await shakaInstance.destroy();
+          } catch (_) {}
           shakaInstance = null;
         }
         const player = new shaka.Player(video);
@@ -470,6 +485,7 @@
 
         player.addEventListener('error', (event) => {
           console.error('Error code', event.detail.code, 'object', event.detail);
+          showWaitNotice(`স্ট্রিম লোড হচ্ছে না (Error: ${event.detail.code})`);
         });
 
         player.addEventListener('manifestparsed', () => {
@@ -485,11 +501,18 @@
               clearKeys: streamConfig.clearKeys
             }
           });
+        } else {
+          player.configure({
+            drm: {
+              clearKeys: {}
+            }
+          });
         }
 
         try {
           await player.load(streamConfig.url);
           renderResolutionMenu();
+          video.play().catch(() => {});
           console.log('Stream loaded successfully:', streamConfig.name);
         } catch (e) {
           console.error('Error loading stream', e);
@@ -573,7 +596,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const video = document.getElementById('video');
       video.addEventListener('playing', hideWaitNotice);
-      video.addEventListener('waiting', showWaitNotice);
+      video.addEventListener('waiting', () => showWaitNotice());
 
       renderResolutionMenu();
       updateLiveTimeCounter();
