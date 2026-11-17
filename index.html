@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SPORTSPLAY TV — Shaka Player (MPD / M3U8)</title>
+  <title>PB SPORTS TV — Shaka Player (MPD / M3U8)</title>
   <!-- Shaka Player compiled library -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
   <style>
@@ -24,6 +24,17 @@
       overflow: hidden; white-space: nowrap;
     }
 
+    .channel-wait-notice {
+      display: none;
+      background: rgba(249, 115, 22, 0.16);
+      border-bottom: 1px solid rgba(249, 115, 22, 0.35);
+      color: #ffedd5;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+    }
+
     .social-row {
       display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;
     }
@@ -31,8 +42,8 @@
       text-align: center; text-decoration: none; font-weight: 700; font-size: 13px;
       padding: 9px 12px; border-radius: 6px; color: #fff;
     }
-    .tg-btn { background: #0284c7; }
-    .wa-btn { background: #16a34a; }
+    .whatsapp-btn { background: #16a34a; }
+    .telegram-btn { background: #0284c7; }
 
     .player-section {
       display: none; margin-bottom: 14px; background: #0c1220;
@@ -63,7 +74,7 @@
     }
     .res-trigger:hover { border-color: #f97316; }
 
-    /* 2nd image style Resolution Menu */
+    /* Resolution Menu */
     .res-menu {
       display: none;
       position: absolute;
@@ -134,7 +145,7 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="brand">SPORTSPLAY TV</div>
+      <div class="brand">PB SPORTS TV</div>
       <div id="clock" style="font-size: 12px; color: #94a3b8;"></div>
     </div>
 
@@ -143,8 +154,8 @@
     </div>
 
     <div class="social-row">
-      <a class="social-btn tg-btn" href="https://t.me/" target="_blank">Telegram</a>
-      <a class="social-btn wa-btn" href="https://wa.me/" target="_blank">WhatsApp</a>
+      <a href="https://wa.me/8801812895985" target="_blank" class="social-btn whatsapp-btn">💬 WhatsApp</a>
+      <a href="https://t.me/+VqDOF_-beaQyMWY1" target="_blank" class="social-btn telegram-btn">📱 Telegram</a>
     </div>
 
     <!-- প্লেয়ার সেকশন -->
@@ -154,10 +165,15 @@
         <button onclick="closePlayer()" style="background:#1e293b;color:#fff;border:1px solid #334155;padding:3px 8px;border-radius:4px;cursor:pointer;">Close</button>
       </div>
 
+      <!-- চ্যানেল লোড নোটিস: প্লে শুরু হলে হাইড হয়ে যাবে -->
+      <div class="channel-wait-notice" id="channelWaitNotice">
+        চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন
+      </div>
+
       <!-- সাধারণ HTML video ট্যাগ (কন্ট্রোলসহ) -->
       <video id="video" width="640" autoplay controls playsinline></video>
 
-      <!-- 1st & 2nd image: 17951:49:25 time + Resolution popup menu -->
+      <!-- 17951:49:25 time + Resolution popup menu -->
       <div class="player-controls-bar">
         <div class="time-badge">
           <span id="liveTimeDisplay">17951:49:25</span>
@@ -183,7 +199,6 @@
   </div>
 
   <script>
-    // আগের কোড থেকে আসা স্ট্রিম এবং DRM ইনফরমেশন
     const STREAMS = [
       {
         name: "Willow Sports",
@@ -227,13 +242,21 @@
       }
     ];
 
-    // কোন স্ট্রিম চালু হবে তা এখান থেকে ঠিক করুন (0 = Willow Sports, 1 = Laliga HD, 2 = FANCODE 1)
     let activeIndex = 0;
     let currentTab = "all";
     let shakaInstance = null;
     let selectedResolution = "auto";
 
-    // 1st image: 17951:49:25 live-ticking format
+    function showWaitNotice() {
+      const notice = document.getElementById("channelWaitNotice");
+      if (notice) notice.style.display = "block";
+    }
+
+    function hideWaitNotice() {
+      const notice = document.getElementById("channelWaitNotice");
+      if (notice) notice.style.display = "none";
+    }
+
     const BASE_SECONDS = (17951 * 3600) + (49 * 60) + 25;
     const bootTimestamp = Date.now();
 
@@ -261,7 +284,6 @@
       return ` (${Math.round(bandwidth / 1000)} Kbps)`;
     }
 
-    // 2nd image style Resolution list (Auto + available tracks / fallback presets)
     function renderResolutionMenu() {
       const listEl = document.getElementById("resolutionList");
       if (!listEl) return;
@@ -330,10 +352,8 @@
 
       if (shakaInstance) {
         if (resId === "auto") {
-          // নেট স্পিড বুঝে অটো কমবে-বাড়বে
           shakaInstance.configure({ abr: { enabled: true } });
         } else {
-          // ইউজারের সিলেক্ট করা রেজোলিউশনে লক করবে
           shakaInstance.configure({ abr: { enabled: false } });
           const tracks = shakaInstance.getVariantTracks();
           const exact = tracks.find(t => String(t.id) === String(resId));
@@ -365,7 +385,6 @@
     }
 
     async function initApp(streamConfig = STREAMS[activeIndex]) {
-      // ব্রাউজার কম্প্যাটিবিলিটির জন্য পলিবিল ইনস্টল করা
       shaka.polyfill.installAll();
 
       if (shaka.Player.isBrowserSupported()) {
@@ -377,19 +396,16 @@
         const player = new shaka.Player(video);
         shakaInstance = player;
 
-        // নেট স্পিড বুঝে অটো রেজোলিউশন অ্যাডজাস্ট (ABR) চালু রাখা
         player.configure({
           abr: {
             enabled: true
           }
         });
 
-        // এরর হ্যান্ডলিং
         player.addEventListener('error', (event) => {
           console.error('Error code', event.detail.code, 'object', event.detail);
         });
 
-        // ম্যানিফেস্ট লোড হলে উপলব্ধ রেজোলিউশন মেনু আপডেট
         player.addEventListener('manifestparsed', () => {
           selectedResolution = "auto";
           const labelEl = document.getElementById("activeResLabel");
@@ -397,7 +413,6 @@
           renderResolutionMenu();
         });
 
-        // যদি ClearKey DRM থাকে, তবে কনফিগারেশন যোগ করা
         if (streamConfig.useDrm && Object.keys(streamConfig.clearKeys).length > 0) {
           player.configure({
             drm: {
@@ -407,7 +422,6 @@
         }
 
         try {
-          // স্ট্রিম লোড করা (লিংকটি .mpd হোক বা .m3u8, Shaka প্লেয়ার অটো ডিটেক্ট করবে)
           await player.load(streamConfig.url);
           renderResolutionMenu();
           console.log('Stream loaded successfully:', streamConfig.name);
@@ -420,11 +434,12 @@
       }
     }
 
-    // কার্ডে ক্লিক করলে নির্দিষ্ট স্ট্রিম প্লে করার ফাংশন
     async function playStream(index) {
       activeIndex = index;
       const streamConfig = STREAMS[activeIndex];
       if (!streamConfig) return;
+
+      showWaitNotice();
 
       document.getElementById("playerTitle").textContent =
         `${streamConfig.sport} | ${streamConfig.matchTitle} (${streamConfig.name})`;
@@ -436,6 +451,7 @@
 
     function closePlayer() {
       toggleResolutionMenu(false);
+      hideWaitNotice();
       document.getElementById("playerSection").classList.remove("active");
     }
 
@@ -489,6 +505,10 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      const video = document.getElementById('video');
+      video.addEventListener('playing', hideWaitNotice);
+      video.addEventListener('waiting', showWaitNotice);
+
       renderMatches();
       renderResolutionMenu();
       updateLiveTimeCounter();
