@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pb Sports Tv — Live Match Center</title>
-  <!-- একটিমাত্র প্লেয়ার: Shaka Player (MPD + M3U8 দুটোই সাপোর্ট করে) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.11.6/shaka-player.compiled.min.js"></script>
   <style>
     :root {
@@ -51,19 +50,19 @@
     }
 
     /* ======================================================
-       CRICFLIX STYLE SINGLE SHAKA PLAYER
+       UPGRADED SINGLE SHAKA PLAYER
        ====================================================== */
     .cf-player-wrap {
       display: none;
       position: relative;
       width: 100%;
       aspect-ratio: 16 / 9;
-      max-height: 520px;
+      max-height: 540px;
       background: #000;
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid #1e293b;
-      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.75);
       margin-bottom: 16px;
       user-select: none;
     }
@@ -77,22 +76,23 @@
       display: block;
     }
 
-    /* Top Gradient Overlay */
+    /* Top Overlay */
     .cf-top-bar {
       position: absolute;
       top: 0; left: 0; right: 0;
-      padding: 12px 16px;
-      background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+      padding: 10px 14px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 100%);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 10px;
       z-index: 10;
       transition: opacity 0.25s;
     }
     .cf-match-meta {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       min-width: 0;
     }
     .cf-live-pill {
@@ -116,7 +116,7 @@
     @keyframes blink { 50% { opacity: 0.3; } }
 
     .cf-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       color: #f8fafc;
       white-space: nowrap;
@@ -124,7 +124,7 @@
       text-overflow: ellipsis;
     }
     .cf-close-btn {
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.9);
       color: #f1f5f9;
       border: 1px solid rgba(255,255,255,0.2);
       padding: 5px 10px;
@@ -136,50 +136,54 @@
     }
     .cf-close-btn:hover { background: var(--live-red); border-color: var(--live-red); }
 
-    /* Center Buffering Spinner */
+    /* Buffering Spinner */
     .cf-spinner {
       position: absolute;
       inset: 0;
       display: none;
+      flex-direction: column;
+      gap: 8px;
       align-items: center;
       justify-content: center;
       background: rgba(0,0,0,0.45);
       z-index: 8;
       pointer-events: none;
+      font-size: 12px;
+      color: #e2e8f0;
     }
     .cf-spinner.show { display: flex; }
     .spinner-ring {
-      width: 44px; height: 44px;
-      border: 4px solid rgba(255,255,255,0.2);
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,0.2);
       border-top-color: var(--accent);
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      animation: spin 0.75s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Error Toast inside Player */
+    /* Error Toast */
     .cf-error {
       position: absolute;
-      top: 52px; left: 16px; right: 16px;
+      top: 48px; left: 14px; right: 14px;
       background: rgba(127, 29, 29, 0.92);
       color: #fecaca;
-      padding: 8px 12px;
+      padding: 7px 12px;
       border-radius: 6px;
       font-size: 12px;
       z-index: 12;
       display: none;
     }
 
-    /* Bottom Control Bar */
+    /* Clean Single-Row Bottom Control Bar (No Overlapping Watermark) */
     .cf-controls {
       position: absolute;
       bottom: 0; left: 0; right: 0;
-      padding: 10px 14px 12px;
-      background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+      padding: 8px 12px 10px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0) 100%);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       z-index: 10;
       transition: opacity 0.25s;
     }
@@ -191,23 +195,24 @@
     .cf-group {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 7px;
+      min-width: 0;
     }
     .cf-btn {
-      background: rgba(255,255,255,0.1);
+      background: rgba(15, 23, 42, 0.85);
       color: #fff;
-      border: 1px solid rgba(255,255,255,0.15);
-      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,0.16);
+      padding: 5px 9px;
       border-radius: 6px;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      transition: 0.15s;
+      white-space: nowrap;
     }
     .cf-btn:hover { background: var(--accent); border-color: var(--accent); }
 
     .cf-vol {
-      width: 70px;
+      width: 64px;
       accent-color: var(--accent);
       cursor: pointer;
     }
@@ -216,21 +221,13 @@
       color: #f8fafc;
       border: 1px solid rgba(255,255,255,0.2);
       border-radius: 6px;
-      padding: 5px 8px;
+      padding: 5px 7px;
       font-size: 12px;
       cursor: pointer;
       outline: none;
     }
-    .cf-watermark {
-      font-size: 11px;
-      font-weight: 800;
-      color: rgba(255,255,255,0.45);
-      letter-spacing: 0.8px;
-    }
 
-    /* ======================================================
-       TABS & MATCH CARDS
-       ====================================================== */
+    /* Tabs & Cards */
     .tabs {
       display: flex;
       gap: 8px;
@@ -389,7 +386,7 @@
       .team { font-size: 13px; gap: 6px; }
       .team img { width: 28px; height: 28px; }
       .center-status { min-width: 85px; }
-      .cf-vol { width: 50px; }
+      .cf-vol { width: 46px; }
     }
   </style>
 </head>
@@ -401,7 +398,7 @@
   </div>
 
   <div class="container">
-    <!-- CricFlix Style Single Shaka Player -->
+    <!-- Single Shaka Player (.mpd + .m3u8 Smooth Playback) -->
     <div class="cf-player-wrap" id="cfPlayerWrap">
       <div class="cf-top-bar">
         <div class="cf-match-meta">
@@ -413,6 +410,7 @@
 
       <div class="cf-spinner" id="cfSpinner">
         <div class="spinner-ring"></div>
+        <span id="cfSpinnerText">Buffering stream...</span>
       </div>
 
       <div class="cf-error" id="cfError"></div>
@@ -424,15 +422,14 @@
           <button class="cf-btn" id="playPauseBtn" onclick="togglePlay()">⏸ Pause</button>
           <button class="cf-btn" id="muteBtn" onclick="toggleMute()">🔊</button>
           <input type="range" class="cf-vol" id="volSlider" min="0" max="1" step="0.05" value="1" oninput="changeVolume(this.value)">
-          <span class="cf-watermark">Pb Sports Tv</span>
         </div>
 
         <div class="cf-group">
           <select class="cf-select" id="qualitySelect" onchange="changeQuality(this.value)">
             <option value="auto">Auto Quality</option>
           </select>
-          <button class="cf-btn" onclick="togglePiP()" title="Picture in Picture">⧉ PiP</button>
-          <button class="cf-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶ Full</button>
+          <button class="cf-btn" onclick="togglePiP()">⧉ PiP</button>
+          <button class="cf-btn" onclick="toggleFullscreen()">⛶ Full</button>
         </div>
       </div>
     </div>
@@ -448,7 +445,6 @@
   </div>
 
   <script>
-    // শুধু url এবং দরকার হলে clearKeys দিন (.mpd বা .m3u8 দুটোই এই একটাই Shaka Player চালাবে)
     const MATCHES = [
       {
         id: "willow-1",
@@ -496,14 +492,18 @@
 
     let currentFilter = "all";
     let shakaPlayer = null;
+    let currentMatchObj = null;
     let idleTimer = null;
+    let retryCount = 0;
 
     const wrap = document.getElementById("cfPlayerWrap");
     const video = document.getElementById("videoPlayer");
     const spinner = document.getElementById("cfSpinner");
+    const spinnerText = document.getElementById("cfSpinnerText");
     const errBox = document.getElementById("cfError");
 
-    function showSpinner(show) {
+    function showSpinner(show, text = "Buffering stream...") {
+      spinnerText.textContent = text;
       spinner.classList.toggle("show", show);
     }
 
@@ -517,14 +517,16 @@
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
         if (!video.paused) wrap.classList.add("idle");
-      }, 3000);
+      }, 2800);
     }
     wrap.addEventListener("mousemove", wakeControls);
     wrap.addEventListener("touchstart", wakeControls);
     video.addEventListener("click", togglePlay);
-    video.addEventListener("waiting", () => showSpinner(true));
+    video.addEventListener("waiting", () => showSpinner(true, "Buffering..."));
     video.addEventListener("playing", () => {
       showSpinner(false);
+      showError("");
+      retryCount = 0;
       document.getElementById("playPauseBtn").textContent = "⏸ Pause";
       wakeControls();
     });
@@ -656,43 +658,92 @@
       render();
     }
 
+    async function initShakaSmooth(match) {
+      if (shakaPlayer) {
+        await shakaPlayer.destroy();
+        shakaPlayer = null;
+      }
+      shaka.polyfill.installAll();
+      shakaPlayer = new shaka.Player(video);
+
+      // স্মুথ বাফারিং, অটো রিট্রাই ও ABR কনফিগ (.mpd + .m3u8)
+      shakaPlayer.configure({
+        drm: {
+          clearKeys: match.clearKeys || {}
+        },
+        streaming: {
+          bufferingGoal: 30,
+          rebufferingGoal: 1,
+          bufferBehind: 20,
+          stallThreshold: 1,
+          stallSkip: 0.1,
+          retryParameters: {
+            timeout: 12000,
+            maxAttempts: 5,
+            baseDelay: 500,
+            backoffFactor: 1.5,
+            fuzzFactor: 0.3
+          }
+        },
+        manifest: {
+          retryParameters: {
+            timeout: 12000,
+            maxAttempts: 5,
+            baseDelay: 500,
+            backoffFactor: 1.5,
+            fuzzFactor: 0.3
+          }
+        },
+        abr: {
+          enabled: true,
+          defaultBandwidthEstimate: 2500000
+        }
+      });
+
+      // স্ট্রিম এরর হলে অটো রিকভারি
+      shakaPlayer.addEventListener("error", async (event) => {
+        const err = event.detail;
+        if (retryCount < 3 && currentMatchObj) {
+          retryCount++;
+          showSpinner(true, `Reconnecting stream (${retryCount}/3)...`);
+          setTimeout(() => loadMatchStream(currentMatchObj), 1200);
+        } else {
+          showSpinner(false);
+          showError("Stream interrupted: " + (err.message || "Code " + err.code));
+        }
+      });
+
+      await loadMatchStream(match);
+    }
+
+    async function loadMatchStream(match) {
+      await shakaPlayer.load(match.url);
+      populateQualities();
+      try {
+        video.muted = false;
+        await video.play();
+      } catch (_) {
+        video.muted = true;
+        document.getElementById("muteBtn").textContent = "🔇";
+        await video.play().catch(() => {});
+      }
+      showSpinner(false);
+    }
+
     async function playMatch(id) {
       const match = MATCHES.find(m => m.id === id);
       if (!match) return;
+      currentMatchObj = match;
+      retryCount = 0;
 
       showError("");
-      showSpinner(true);
+      showSpinner(true, "Loading live stream...");
       document.getElementById("cfTitle").textContent = `${match.channelName} — ${match.matchTitle}`;
       wrap.classList.add("active");
       window.scrollTo({ top: 0, behavior: "smooth" });
 
       try {
-        if (shakaPlayer) {
-          await shakaPlayer.destroy();
-          shakaPlayer = null;
-        }
-        shaka.polyfill.installAll();
-        shakaPlayer = new shaka.Player(video);
-
-        shakaPlayer.configure({
-          drm: {
-            clearKeys: match.clearKeys || {}
-          },
-          streaming: {
-            bufferingGoal: 15,
-            rebufferingGoal: 2
-          }
-        });
-
-        await shakaPlayer.load(match.url);
-        populateQualities();
-        video.muted = false;
-        await video.play().catch(async () => {
-          video.muted = true;
-          document.getElementById("muteBtn").textContent = "🔇";
-          await video.play();
-        });
-        showSpinner(false);
+        await initShakaSmooth(match);
         wakeControls();
       } catch (e) {
         showSpinner(false);
@@ -701,6 +752,7 @@
     }
 
     async function closePlayer() {
+      currentMatchObj = null;
       video.pause();
       if (shakaPlayer) {
         await shakaPlayer.destroy();
