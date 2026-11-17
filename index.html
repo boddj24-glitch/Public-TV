@@ -2,20 +2,123 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Shaka Player - MPD / M3U8 (DRM & Non-DRM)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPORTSPLAY TV — Shaka Player (MPD / M3U8)</title>
   <!-- Shaka Player compiled library -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #070b14; color: #f1f5f9; padding: 14px; }
+    .wrap { max-width: 1180px; margin: 0 auto; }
+
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; background: #0c1220; border: 1px solid #1e293b;
+      border-radius: 8px; margin-bottom: 10px;
+    }
+    .brand { font-weight: 900; color: #f97316; letter-spacing: 0.5px; font-size: 16px; }
+
+    .notice-bar {
+      background: #0c1220; border: 1px solid #1e293b; border-radius: 8px;
+      padding: 8px 12px; margin-bottom: 10px; font-size: 13px; color: #cbd5e1;
+      overflow: hidden; white-space: nowrap;
+    }
+
+    .social-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;
+    }
+    .social-btn {
+      text-align: center; text-decoration: none; font-weight: 700; font-size: 13px;
+      padding: 9px 12px; border-radius: 6px; color: #fff;
+    }
+    .tg-btn { background: #0284c7; }
+    .wa-btn { background: #16a34a; }
+
+    .player-section {
+      display: none; margin-bottom: 14px; background: #0c1220;
+      border: 1px solid #1e293b; border-radius: 10px; overflow: hidden;
+    }
+    .player-section.active { display: block; }
+    .player-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; background: #111827; font-size: 13px; font-weight: 700;
+    }
+    #video { width: 100%; max-height: 480px; background: #000; display: block; }
+
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tab-btn {
+      background: #161f33; color: #cbd5e1; border: 1px solid #28354f;
+      padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .tab-btn.active { background: #f97316; border-color: #f97316; color: #fff; }
+
+    .match-list { display: flex; flex-direction: column; gap: 10px; }
+    .match-card {
+      position: relative; background: linear-gradient(90deg, #071c16 0%, #0b1320 50%, #071c16 100%);
+      border: 1.5px solid #14532d; border-radius: 8px; padding: 14px 16px; cursor: pointer;
+    }
+    .match-card:hover { border-color: #22c55e; }
+    .hot-badge {
+      position: absolute; top: -9px; left: 12px; background: #052e16;
+      border: 1px solid #16a34a; color: #4ade80; font-size: 10px; font-weight: 700;
+      padding: 1px 6px; border-radius: 4px;
+    }
+    .card-top { text-align: center; font-size: 12px; font-weight: 700; margin-bottom: 10px; color: #e2e8f0; }
+    .card-body {
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px;
+    }
+    .team { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+    .team.right { justify-content: flex-end; }
+    .team img { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; background: #0f172a; padding: 2px; }
+    .status-box { text-align: center; font-size: 12px; font-weight: 700; }
+    .live-text { color: #ef4444; }
+    .upcoming-text { color: #cbd5e1; }
+  </style>
 </head>
 <body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">SPORTSPLAY TV</div>
+      <div id="clock" style="font-size: 12px; color: #94a3b8;"></div>
+    </div>
 
-  <!-- সাধারণ HTML video ট্যাগ (কন্ট্রোলসহ) -->
-  <video id="video" width="640" autoplay controls></video>
+    <div class="notice-bar">
+      Watch live HD streaming of Cricket, Football, T10 &amp; League matches.
+    </div>
+
+    <div class="social-row">
+      <a class="social-btn tg-btn" href="https://t.me/" target="_blank">Telegram</a>
+      <a class="social-btn wa-btn" href="https://wa.me/" target="_blank">WhatsApp</a>
+    </div>
+
+    <!-- প্লেয়ার সেকশন -->
+    <div class="player-section" id="playerSection">
+      <div class="player-head">
+        <span id="playerTitle">Now Playing</span>
+        <button onclick="closePlayer()" style="background:#1e293b;color:#fff;border:1px solid #334155;padding:3px 8px;border-radius:4px;cursor:pointer;">Close</button>
+      </div>
+      <!-- সাধারণ HTML video ট্যাগ (কন্ট্রোলসহ) -->
+      <video id="video" width="640" autoplay controls playsinline></video>
+    </div>
+
+    <!-- ফিল্টার ট্যাব -->
+    <div class="tabs" id="filterTabs"></div>
+
+    <!-- ম্যাচ কার্ড লিস্ট -->
+    <div class="match-list" id="matchList"></div>
+  </div>
 
   <script>
     // আগের কোড থেকে আসা স্ট্রিম এবং DRM ইনফরমেশন
     const STREAMS = [
       {
         name: "Willow Sports",
+        hot: true,
+        sport: "CRICKET",
+        matchTitle: "BANGLADESH VS SOUTH AFRICA",
+        status: "live",
+        teamA: { name: "Bangladesh", logo: "https://flagcdn.com/w80/bd.png" },
+        teamB: { name: "South Africa", logo: "https://flagcdn.com/w80/za.png" },
         url: "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/tll6uwepxa/out/v1/a7f67cbb33df46539312956427343886/cenc.mpd",
         useDrm: true,
         clearKeys: {
@@ -24,6 +127,12 @@
       },
       {
         name: "Laliga HD",
+        hot: true,
+        sport: "FOOTBALL",
+        matchTitle: "SAFF CHAMPIONSHIP 2026",
+        status: "live",
+        teamA: { name: "SAFF", logo: "https://i.postimg.cc/v8JPQjFK/laliga.png" },
+        teamB: { name: "SAFF", logo: "https://i.postimg.cc/v8JPQjFK/laliga.png" },
         url: "https://abfjk4haaaaaaaampv6ofhkihi4r6.bia-cf.live.pv-cdn.net/iad-nitro/live/clients/dash/enc/m6sqanvm2m/out/v1/f6beb46c6e9a4132ad739f3ca27df6aa/cenc.mpd",
         useDrm: true,
         clearKeys: {
@@ -32,6 +141,12 @@
       },
       {
         name: "FANCODE 1",
+        hot: true,
+        sport: "CRICKET",
+        matchTitle: "ABU DHABI T10 LEAGUE",
+        status: "upcoming",
+        teamA: { name: "T10", logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png" },
+        teamB: { name: "T10", logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png" },
         url: "https://example.com/live/sample.m3u8",
         useDrm: false,
         clearKeys: {}
@@ -39,16 +154,22 @@
     ];
 
     // কোন স্ট্রিম চালু হবে তা এখান থেকে ঠিক করুন (0 = Willow Sports, 1 = Laliga HD, 2 = FANCODE 1)
-    const activeIndex = 0;
-    const streamConfig = STREAMS[activeIndex];
+    let activeIndex = 0;
+    let currentTab = "all";
+    let shakaInstance = null;
 
-    async function initApp() {
+    async function initApp(streamConfig = STREAMS[activeIndex]) {
       // ব্রাউজার কম্প্যাটিবিলিটির জন্য পলিবিল ইনস্টল করা
       shaka.polyfill.installAll();
 
       if (shaka.Player.isBrowserSupported()) {
         const video = document.getElementById('video');
+        if (shakaInstance) {
+          await shakaInstance.destroy();
+          shakaInstance = null;
+        }
         const player = new shaka.Player(video);
+        shakaInstance = player;
 
         // এরর হ্যান্ডলিং
         player.addEventListener('error', (event) => {
@@ -76,8 +197,76 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', initApp);
-  </script>
+    // কার্ডে ক্লিক করলে নির্দিষ্ট স্ট্রিম প্লে করার ফাংশন
+    async function playStream(index) {
+      activeIndex = index;
+      const streamConfig = STREAMS[activeIndex];
+      if (!streamConfig) return;
 
+      document.getElementById("playerTitle").textContent =
+        `${streamConfig.sport} | ${streamConfig.matchTitle} (${streamConfig.name})`;
+      document.getElementById("playerSection").classList.add("active");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      await initApp(streamConfig);
+    }
+
+    function closePlayer() {
+      document.getElementById("playerSection").classList.remove("active");
+    }
+
+    function setTab(tab) {
+      currentTab = tab;
+      renderMatches();
+    }
+
+    function renderMatches() {
+      document.getElementById("clock").textContent = new Date().toLocaleTimeString();
+
+      const counts = {
+        all: STREAMS.length,
+        live: STREAMS.filter(s => s.status === "live").length,
+        recent: STREAMS.filter(s => s.status === "recent").length,
+        upcoming: STREAMS.filter(s => s.status === "upcoming").length
+      };
+
+      document.getElementById("filterTabs").innerHTML = `
+        <button class="tab-btn ${currentTab === 'all' ? 'active' : ''}" onclick="setTab('all')">All (${counts.all})</button>
+        <button class="tab-btn ${currentTab === 'live' ? 'active' : ''}" onclick="setTab('live')">Live (${counts.live})</button>
+        <button class="tab-btn ${currentTab === 'recent' ? 'active' : ''}" onclick="setTab('recent')">Recent (${counts.recent})</button>
+        <button class="tab-btn ${currentTab === 'upcoming' ? 'active' : ''}" onclick="setTab('upcoming')">Upcoming (${counts.upcoming})</button>
+      `;
+
+      const list = currentTab === "all"
+        ? STREAMS.map((s, idx) => ({ ...s, idx }))
+        : STREAMS.map((s, idx) => ({ ...s, idx })).filter(s => s.status === currentTab);
+
+      document.getElementById("matchList").innerHTML = list.map(item => `
+        <div class="match-card" onclick="playStream(${item.idx})">
+          ${item.hot ? `<div class="hot-badge">HOT 🔥</div>` : ""}
+          <div class="card-top">${item.sport} | ${item.matchTitle}</div>
+          <div class="card-body">
+            <div class="team">
+              <img src="${item.teamA.logo}" alt="${item.teamA.name}">
+              <span>${item.teamA.name}</span>
+            </div>
+            <div class="status-box">
+              ${item.status === "live"
+                ? `<div class="live-text">((•))<br>Live</div>`
+                : `<div class="upcoming-text">Upcoming</div>`}
+            </div>
+            <div class="team right">
+              <span>${item.teamB.name}</span>
+              <img src="${item.teamB.logo}" alt="${item.teamB.name}">
+            </div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderMatches();
+    });
+  </script>
 </body>
 </html>
