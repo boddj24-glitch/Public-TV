@@ -75,5 +75,76 @@
     "clearKeys": {},
     "logoUrl": "https://web.aynaott.com/storage/019dd92f-107c-7056-9e79-e5233f6e51d9/uploads/images/2026-10-06/images_6b43965cf8ff9e05973fde793d1ba4d2_playmist_sportv_logo_png_seeklogo_424355.png",
     "fallbackLogo": "▶️"
+  },
+  {
+    "name": "Tapmad Live",
+    "tvgLogo": "https://asset.brandfetch.io/iduZqK3Qk-/id9YVz4W_W.png",
+    "groupTitle": "Sports",
+    "category": "Sports",
+    "logo": "▶️",
+    "tone": "blue",
+    "url": "",
+    "useDrm": false,
+    "clearKeys": {},
+    "logoUrl": "https://asset.brandfetch.io/iduZqK3Qk-/id9YVz4W_W.png",
+    "fallbackLogo": "▶️"
+  },
+  {
+    "name": "Willow Sports",
+    "hot": true,
+    "sport": "CRICKET",
+    "matchTitle": "BANGLADESH VS SOUTH AFRICA",
+    "status": "live",
+    "teamA": {
+      "name": "Bangladesh",
+      "logo": "https://flagcdn.com/w80/bd.png"
+    },
+    "teamB": {
+      "name": "South Africa",
+      "logo": "https://flagcdn.com/w80/za.png"
+    },
+    "url": "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/tll6uwepxa/out/v1/a7f67cbb33df46539312956427343886/cenc.mpd",
+    "useDrm": true,
+    "clearKeys": {
+      "290e09c837da78d5cd961978d390515c": "b748836c71e6a4ca68ef5b5652db6247"
+    }
+  },
+  {
+    "name": "Laliga HD",
+    "hot": true,
+    "sport": "FOOTBALL",
+    "matchTitle": "SAFF CHAMPIONSHIP 2026",
+    "status": "live",
+    "teamA": {
+      "name": "SAFF",
+      "logo": "https://i.postimg.cc/v8JPQjFK/laliga.png"
+    },
+    "teamB": {
+      "name": "SAFF",
+      "logo": "https://i.postimg.cc/v8JPQjFK/laliga.png"
+    },
+    "url": "https://abfjk4haaaaaaaampv6ofhkihi4r6.bia-cf.live.pv-cdn.net/iad-nitro/live/clients/dash/enc/m6sqanvm2m/out/v1/f6beb46c6e9a4132ad739f3ca27df6aa/cenc.mpd",
+    "useDrm": true,
+    "clearKeys": {
+      "1444f4235529f183f0a5a486befe9cdb": "e5e3fec67a1bb3472a2089c8a0a2557f"
+    }
+  },
+  {
+    "name": "FANCODE 1",
+    "hot": true,
+    "sport": "CRICKET",
+    "matchTitle": "ABU DHABI T10 LEAGUE",
+    "status": "upcoming",
+    "teamA": {
+      "name": "T10",
+      "logo": "https://i.postimg.cc/ZRV7W8cV/fancode.png"
+    },
+    "teamB": {
+      "name": "T10",
+      "logo": "https://i.postimg.cc/ZRV7W8cV/fancode.png"
+    },
+    "url": "https://example.com/live/sample.m3u8",
+    "useDrm": false,
+    "clearKeys": {}
   }
 ]
