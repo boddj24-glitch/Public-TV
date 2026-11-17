@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SHAWON TV — Live Match Center</title>
-  <!-- শুধু একটি প্লেয়ার: Shaka Player (MPD + M3U8 দুটোই সাপোর্ট করে) -->
+  <title>Pb Sports Tv — Live Match Center</title>
+  <!-- একটিমাত্র প্লেয়ার: Shaka Player (MPD + M3U8 দুটোই সাপোর্ট করে) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.11.6/shaka-player.compiled.min.js"></script>
   <style>
     :root {
-      --bg: #070b14;
-      --card-border: #155e45;
+      --bg: #060a13;
+      --card-border: #14532d;
       --live-glow: rgba(16, 185, 129, 0.25);
       --accent: #f97316;
       --live-red: #ef4444;
@@ -26,7 +26,7 @@
     }
 
     .topbar {
-      background: #0d1322;
+      background: #0c1220;
       border-bottom: 1px solid #1e293b;
       padding: 12px 16px;
       display: flex;
@@ -38,7 +38,7 @@
     }
     .brand {
       font-weight: 800;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.6px;
       color: #f8fafc;
       font-size: 16px;
     }
@@ -50,51 +50,187 @@
       padding: 0 12px;
     }
 
-    /* Single Player Box */
-    .player-wrapper {
+    /* ======================================================
+       CRICFLIX STYLE SINGLE SHAKA PLAYER
+       ====================================================== */
+    .cf-player-wrap {
       display: none;
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      max-height: 520px;
       background: #000;
-      border: 1px solid #1e293b;
-      border-radius: 12px;
+      border-radius: 14px;
       overflow: hidden;
+      border: 1px solid #1e293b;
+      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.7);
       margin-bottom: 16px;
+      user-select: none;
     }
-    .player-wrapper.active { display: block; }
-    .player-header {
-      background: #0f172a;
-      padding: 10px 14px;
+    .cf-player-wrap.active { display: block; }
+
+    .cf-player-wrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+      display: block;
+    }
+
+    /* Top Gradient Overlay */
+    .cf-top-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 12px 16px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 14px;
-      gap: 10px;
+      z-index: 10;
+      transition: opacity 0.25s;
     }
-    .close-btn {
-      background: #ef4444;
+    .cf-match-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .cf-live-pill {
+      background: var(--live-red);
       color: #fff;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 12px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
       flex-shrink: 0;
     }
-    video {
-      width: 100%;
-      max-height: 460px;
-      display: block;
-      background: #000;
+    .cf-live-dot {
+      width: 6px; height: 6px;
+      background: #fff;
+      border-radius: 50%;
+      animation: blink 1s infinite;
     }
-    .player-error {
-      padding: 10px 14px;
-      background: #2a1215;
-      color: #fca5a5;
+    @keyframes blink { 50% { opacity: 0.3; } }
+
+    .cf-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f8fafc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cf-close-btn {
+      background: rgba(15, 23, 42, 0.85);
+      color: #f1f5f9;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 5px 10px;
+      border-radius: 6px;
       font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .cf-close-btn:hover { background: var(--live-red); border-color: var(--live-red); }
+
+    /* Center Buffering Spinner */
+    .cf-spinner {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.45);
+      z-index: 8;
+      pointer-events: none;
+    }
+    .cf-spinner.show { display: flex; }
+    .spinner-ring {
+      width: 44px; height: 44px;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error Toast inside Player */
+    .cf-error {
+      position: absolute;
+      top: 52px; left: 16px; right: 16px;
+      background: rgba(127, 29, 29, 0.92);
+      color: #fecaca;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      z-index: 12;
       display: none;
     }
 
-    /* Filter Tabs */
+    /* Bottom Control Bar */
+    .cf-controls {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 10px 14px 12px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      transition: opacity 0.25s;
+    }
+    .cf-player-wrap.idle .cf-top-bar,
+    .cf-player-wrap.idle .cf-controls {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .cf-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cf-btn {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .cf-btn:hover { background: var(--accent); border-color: var(--accent); }
+
+    .cf-vol {
+      width: 70px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .cf-select {
+      background: rgba(15, 23, 42, 0.95);
+      color: #f8fafc;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+    }
+    .cf-watermark {
+      font-size: 11px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.8px;
+    }
+
+    /* ======================================================
+       TABS & MATCH CARDS
+       ====================================================== */
     .tabs {
       display: flex;
       gap: 8px;
@@ -118,7 +254,6 @@
       border-color: var(--accent);
     }
 
-    /* Match Cards */
     .match-list {
       display: flex;
       flex-direction: column;
@@ -221,7 +356,6 @@
       margin-top: 2px;
     }
 
-    /* Bottom Nav */
     .bottom-nav {
       position: fixed;
       bottom: 12px;
@@ -255,25 +389,52 @@
       .team { font-size: 13px; gap: 6px; }
       .team img { width: 28px; height: 28px; }
       .center-status { min-width: 85px; }
+      .cf-vol { width: 50px; }
     }
   </style>
 </head>
 <body>
 
   <div class="topbar">
-    <div class="brand">SHAWON<span>TV</span> LIVE</div>
+    <div class="brand">Pb Sports <span>Tv</span></div>
     <div style="font-size: 12px; color: #94a3b8;" id="clock"></div>
   </div>
 
   <div class="container">
-    <!-- Single Shaka Player -->
-    <div class="player-wrapper" id="playerWrapper">
-      <div class="player-header">
-        <span id="playingTitle">Playing Match...</span>
-        <button class="close-btn" onclick="closePlayer()">✕ Close</button>
+    <!-- CricFlix Style Single Shaka Player -->
+    <div class="cf-player-wrap" id="cfPlayerWrap">
+      <div class="cf-top-bar">
+        <div class="cf-match-meta">
+          <span class="cf-live-pill"><span class="cf-live-dot"></span>LIVE</span>
+          <span class="cf-title" id="cfTitle">Select a match</span>
+        </div>
+        <button class="cf-close-btn" onclick="closePlayer()">✕ Close</button>
       </div>
-      <div class="player-error" id="playerError"></div>
-      <video id="videoPlayer" controls autoplay muted playsinline></video>
+
+      <div class="cf-spinner" id="cfSpinner">
+        <div class="spinner-ring"></div>
+      </div>
+
+      <div class="cf-error" id="cfError"></div>
+
+      <video id="videoPlayer" playsinline></video>
+
+      <div class="cf-controls">
+        <div class="cf-group">
+          <button class="cf-btn" id="playPauseBtn" onclick="togglePlay()">⏸ Pause</button>
+          <button class="cf-btn" id="muteBtn" onclick="toggleMute()">🔊</button>
+          <input type="range" class="cf-vol" id="volSlider" min="0" max="1" step="0.05" value="1" oninput="changeVolume(this.value)">
+          <span class="cf-watermark">Pb Sports Tv</span>
+        </div>
+
+        <div class="cf-group">
+          <select class="cf-select" id="qualitySelect" onchange="changeQuality(this.value)">
+            <option value="auto">Auto Quality</option>
+          </select>
+          <button class="cf-btn" onclick="togglePiP()" title="Picture in Picture">⧉ PiP</button>
+          <button class="cf-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶ Full</button>
+        </div>
+      </div>
     </div>
 
     <div class="tabs" id="filterTabs"></div>
@@ -287,7 +448,7 @@
   </div>
 
   <script>
-    // শুধু url এবং দরকার হলে clearKeys দিন (.mpd বা .m3u8 যেকোনোটাই একই Shaka Player চালাবে)
+    // শুধু url এবং দরকার হলে clearKeys দিন (.mpd বা .m3u8 দুটোই এই একটাই Shaka Player চালাবে)
     const MATCHES = [
       {
         id: "willow-1",
@@ -329,12 +490,105 @@
         teamB: { name: "Stream 1", logo: "https://i.postimg.cc/ZRV7W8cV/fancode.png" },
         start: "2026-11-17T21:00:00+06:00",
         end:   "2026-11-18T05:00:00+06:00",
-        url: "https://example.com/live/sample.m3u8" // .m3u8 লিংক দিলেও একটাই Shaka Player চালাবে
+        url: "https://example.com/live/sample.m3u8"
       }
     ];
 
     let currentFilter = "all";
     let shakaPlayer = null;
+    let idleTimer = null;
+
+    const wrap = document.getElementById("cfPlayerWrap");
+    const video = document.getElementById("videoPlayer");
+    const spinner = document.getElementById("cfSpinner");
+    const errBox = document.getElementById("cfError");
+
+    function showSpinner(show) {
+      spinner.classList.toggle("show", show);
+    }
+
+    function showError(msg) {
+      errBox.style.display = msg ? "block" : "none";
+      errBox.textContent = msg || "";
+    }
+
+    function wakeControls() {
+      wrap.classList.remove("idle");
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        if (!video.paused) wrap.classList.add("idle");
+      }, 3000);
+    }
+    wrap.addEventListener("mousemove", wakeControls);
+    wrap.addEventListener("touchstart", wakeControls);
+    video.addEventListener("click", togglePlay);
+    video.addEventListener("waiting", () => showSpinner(true));
+    video.addEventListener("playing", () => {
+      showSpinner(false);
+      document.getElementById("playPauseBtn").textContent = "⏸ Pause";
+      wakeControls();
+    });
+    video.addEventListener("pause", () => {
+      document.getElementById("playPauseBtn").textContent = "▶ Play";
+      wrap.classList.remove("idle");
+    });
+
+    function togglePlay() {
+      if (video.paused) video.play().catch(() => {});
+      else video.pause();
+    }
+
+    function toggleMute() {
+      video.muted = !video.muted;
+      document.getElementById("muteBtn").textContent = video.muted ? "🔇" : "🔊";
+    }
+
+    function changeVolume(val) {
+      video.volume = parseFloat(val);
+      video.muted = video.volume === 0;
+      document.getElementById("muteBtn").textContent = video.muted ? "🔇" : "🔊";
+    }
+
+    async function togglePiP() {
+      try {
+        if (document.pictureInPictureElement) await document.exitPictureInPicture();
+        else if (document.pictureInPictureEnabled) await video.requestPictureInPicture();
+      } catch (_) {}
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        wrap.requestFullscreen?.().catch(() => {});
+      } else {
+        document.exitFullscreen?.().catch(() => {});
+      }
+    }
+
+    function populateQualities() {
+      const select = document.getElementById("qualitySelect");
+      select.innerHTML = `<option value="auto">Auto Quality</option>`;
+      if (!shakaPlayer) return;
+      const tracks = shakaPlayer.getVariantTracks();
+      const heights = [...new Set(tracks.map(t => t.height).filter(Boolean))].sort((a, b) => b - a);
+      heights.forEach(h => {
+        const opt = document.createElement("option");
+        opt.value = h;
+        opt.textContent = `${h}p`;
+        select.appendChild(opt);
+      });
+    }
+
+    function changeQuality(val) {
+      if (!shakaPlayer) return;
+      if (val === "auto") {
+        shakaPlayer.configure({ abr: { enabled: true } });
+        return;
+      }
+      shakaPlayer.configure({ abr: { enabled: false } });
+      const tracks = shakaPlayer.getVariantTracks();
+      const matchTrack = tracks.find(t => String(t.height) === String(val));
+      if (matchTrack) shakaPlayer.selectVariantTrack(matchTrack, true);
+    }
 
     function getMatchStatus(match, now = new Date()) {
       const start = new Date(match.start);
@@ -406,13 +660,10 @@
       const match = MATCHES.find(m => m.id === id);
       if (!match) return;
 
-      const wrapper = document.getElementById("playerWrapper");
-      const video = document.getElementById("videoPlayer");
-      const errBox = document.getElementById("playerError");
-      errBox.style.display = "none";
-
-      document.getElementById("playingTitle").textContent = `${match.channelName} — ${match.matchTitle}`;
-      wrapper.classList.add("active");
+      showError("");
+      showSpinner(true);
+      document.getElementById("cfTitle").textContent = `${match.channelName} — ${match.matchTitle}`;
+      wrap.classList.add("active");
       window.scrollTo({ top: 0, behavior: "smooth" });
 
       try {
@@ -423,29 +674,39 @@
         shaka.polyfill.installAll();
         shakaPlayer = new shaka.Player(video);
 
-        // ClearKey থাকলে সেট করবে, না থাকলে খালি রাখবে (M3U8 এর জন্য)
         shakaPlayer.configure({
           drm: {
             clearKeys: match.clearKeys || {}
+          },
+          streaming: {
+            bufferingGoal: 15,
+            rebufferingGoal: 2
           }
         });
 
         await shakaPlayer.load(match.url);
-        video.play().catch(() => {});
+        populateQualities();
+        video.muted = false;
+        await video.play().catch(async () => {
+          video.muted = true;
+          document.getElementById("muteBtn").textContent = "🔇";
+          await video.play();
+        });
+        showSpinner(false);
+        wakeControls();
       } catch (e) {
-        errBox.style.display = "block";
-        errBox.textContent = "Player error: " + (e.message || e);
+        showSpinner(false);
+        showError("Stream load error: " + (e.message || e));
       }
     }
 
     async function closePlayer() {
-      const video = document.getElementById("videoPlayer");
       video.pause();
       if (shakaPlayer) {
         await shakaPlayer.destroy();
         shakaPlayer = null;
       }
-      document.getElementById("playerWrapper").classList.remove("active");
+      wrap.classList.remove("active");
     }
 
     render();
