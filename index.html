@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pb Sports Tv — Live Match Center</title>
-  <!-- একটিমাত্র প্লেয়ার: Shaka Player (MPD + M3U8 দুটোই সাপোর্ট করে) -->
+  <link rel="preconnect" href="https://otte.cache.aiv-cdn.net" crossorigin>
+  <link rel="preconnect" href="https://abfjk4haaaaaaaampv6ofhkihi4r6.bia-cf.live.pv-cdn.net" crossorigin>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.11.6/shaka-player.compiled.min.js"></script>
   <style>
     :root {
@@ -50,10 +51,9 @@
       padding: 0 12px;
     }
 
-    /* Clean Single Player */
+    /* Clean Video Only Player */
     .player-box {
       display: none;
-      position: relative;
       width: 100%;
       background: #000;
       border-radius: 14px;
@@ -70,25 +70,6 @@
       max-height: 520px;
       display: block;
       background: #000;
-    }
-
-    .close-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 15;
-      background: rgba(15, 23, 42, 0.85);
-      color: #f8fafc;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .close-btn:hover {
-      background: var(--live-red);
-      border-color: var(--live-red);
     }
 
     .player-error {
@@ -271,11 +252,9 @@
   </div>
 
   <div class="container">
-    <!-- Single Smooth Shaka Player (MPD + M3U8) -->
     <div class="player-box" id="playerBox">
-      <button class="close-btn" onclick="closePlayer()">✕ Close</button>
       <div class="player-error" id="playerError"></div>
-      <video id="videoPlayer" controls autoplay muted playsinline></video>
+      <video id="videoPlayer" controls autoplay muted playsinline preload="auto"></video>
     </div>
 
     <div class="tabs" id="filterTabs"></div>
@@ -289,7 +268,6 @@
   </div>
 
   <script>
-    // শুধু url এবং দরকার হলে clearKeys দিন (.mpd বা .m3u8 দুটোই একটাই Shaka Player চালাবে)
     const MATCHES = [
       {
         id: "willow-1",
@@ -338,6 +316,72 @@
     let currentFilter = "all";
     let shakaPlayer = null;
     let activeMatchId = null;
+
+    shaka.polyfill.installAll();
+
+    function initPlayerOnce() {
+      if (shakaPlayer) return shakaPlayer;
+      const video = document.getElementById("videoPlayer");
+      shakaPlayer = new shaka.Player(video);
+
+      shakaPlayer.addEventListener("error", async (event) => {
+        const detail = event.detail;
+        if (detail && detail.severity === shaka.util.Error.Severity.CRITICAL && activeMatchId) {
+          const m = MATCHES.find(x => x.id === activeMatchId);
+          if (m) {
+            try {
+              await shakaPlayer.load(m.url);
+              video.play().catch(() => {});
+            } catch (_) {}
+          }
+        }
+      });
+
+      return shakaPlayer;
+    }
+
+    function applyAdaptiveNetConfig(player, clearKeys) {
+      player.configure({
+        drm: {
+          clearKeys: clearKeys || {}
+        },
+        streaming: {
+          bufferingGoal: 4,
+          rebufferingGoal: 0.5,
+          bufferBehind: 10,
+          lowLatencyMode: true,
+          inaccurateManifestTolerance: 0,
+          stallEnabled: true,
+          stallThreshold: 0.8,
+          stallSkip: 0.2,
+          retryParameters: {
+            maxAttempts: 4,
+            baseDelay: 300,
+            maxDelay: 2000,
+            backoffFactor: 1.4,
+            fuzzFactor: 0.2
+          }
+        },
+        manifest: {
+          defaultPresentationDelay: 3,
+          retryParameters: {
+            maxAttempts: 4,
+            baseDelay: 300,
+            maxDelay: 2000,
+            backoffFactor: 1.4,
+            fuzzFactor: 0.2
+          }
+        },
+        abr: {
+          enabled: true,
+          // শুরুতে HD-তে না গিয়ে হালকা স্পিড ধরে চালু হবে, পরে নেট স্পিড বুঝে ধাপে ধাপে শিফট করবে
+          defaultBandwidthEstimate: 250000,
+          switchInterval: 8,
+          bandwidthDowngradeTarget: 0.85,
+          bandwidthUpgradeTarget: 0.55
+        }
+      });
+    }
 
     function getMatchStatus(match, now = new Date()) {
       const start = new Date(match.start);
@@ -405,45 +449,6 @@
       render();
     }
 
-    function applySmoothOttConfig(player, clearKeys) {
-      player.configure({
-        drm: {
-          clearKeys: clearKeys || {}
-        },
-        streaming: {
-          // OTT / TVMate style fast start & smooth buffer
-          bufferingGoal: 12,
-          rebufferingGoal: 1.5,
-          bufferBehind: 20,
-          stallEnabled: true,
-          stallThreshold: 1,
-          stallSkip: 0.1,
-          retryParameters: {
-            maxAttempts: 5,
-            baseDelay: 500,
-            maxDelay: 4000,
-            backoffFactor: 1.5,
-            fuzzFactor: 0.3
-          }
-        },
-        manifest: {
-          retryParameters: {
-            maxAttempts: 5,
-            baseDelay: 500,
-            maxDelay: 4000,
-            backoffFactor: 1.5,
-            fuzzFactor: 0.3
-          }
-        },
-        abr: {
-          enabled: true,
-          defaultBandwidthEstimate: 3000000, // 3 Mbps initial estimate for fast HD start
-          bandwidthDowngradeTarget: 0.85,
-          bandwidthUpgradeTarget: 0.65
-        }
-      });
-    }
-
     async function playMatch(id) {
       const match = MATCHES.find(m => m.id === id);
       if (!match) return;
@@ -458,47 +463,18 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
 
       try {
-        if (shakaPlayer) {
-          await shakaPlayer.destroy();
-          shakaPlayer = null;
-        }
-        shaka.polyfill.installAll();
-        shakaPlayer = new shaka.Player(video);
+        const player = initPlayerOnce();
+        await player.unload();
+        applyAdaptiveNetConfig(player, match.clearKeys);
 
-        // নেটওয়ার্ক ড্রপ হলে অটো রিকানেক্ট হ্যান্ডলার
-        shakaPlayer.addEventListener("error", async (event) => {
-          const detail = event.detail;
-          if (detail && detail.severity === shaka.util.Error.Severity.CRITICAL && activeMatchId === id) {
-            try {
-              await shakaPlayer.load(match.url);
-              video.play().catch(() => {});
-            } catch (_) {}
-          }
-        });
-
-        applySmoothOttConfig(shakaPlayer, match.clearKeys);
-
-        await shakaPlayer.load(match.url);
+        video.muted = true;
+        await player.load(match.url);
+        await video.play();
         video.muted = false;
-        await video.play().catch(async () => {
-          video.muted = true;
-          await video.play();
-        });
       } catch (e) {
         errBox.style.display = "block";
         errBox.textContent = "Stream error: " + (e.message || e);
       }
-    }
-
-    async function closePlayer() {
-      activeMatchId = null;
-      const video = document.getElementById("videoPlayer");
-      video.pause();
-      if (shakaPlayer) {
-        await shakaPlayer.destroy();
-        shakaPlayer = null;
-      }
-      document.getElementById("playerBox").classList.remove("active");
     }
 
     render();
