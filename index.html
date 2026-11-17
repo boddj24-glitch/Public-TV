@@ -37,12 +37,68 @@
     .player-section {
       display: none; margin-bottom: 14px; background: #0c1220;
       border: 1px solid #1e293b; border-radius: 10px; overflow: hidden;
+      position: relative;
     }
     .player-section.active { display: block; }
     .player-head {
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
       padding: 8px 12px; background: #111827; font-size: 13px; font-weight: 700;
     }
+    .player-controls-bar {
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      padding: 8px 12px; background: #0f172a; border-top: 1px solid #1e293b;
+      font-size: 12px; flex-wrap: wrap;
+    }
+    .time-badge {
+      font-variant-numeric: tabular-nums;
+      color: #e2e8f0;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .res-trigger {
+      background: #1e293b; color: #f8fafc; border: 1px solid #334155;
+      padding: 5px 10px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 12px;
+    }
+    .res-trigger:hover { border-color: #f97316; }
+
+    /* 2nd image style Resolution Menu */
+    .res-menu {
+      display: none;
+      position: absolute;
+      right: 12px;
+      bottom: 44px;
+      width: 240px;
+      background: rgba(24, 24, 27, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.75);
+      z-index: 40;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+    .res-menu.open { display: block; }
+    .res-menu-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-weight: 700; font-size: 13px; color: #f4f4f5;
+    }
+    .res-close {
+      background: none; border: none; color: #a1a1aa; font-size: 16px; cursor: pointer; line-height: 1;
+    }
+    .res-list { max-height: 280px; overflow-y: auto; padding: 6px 0; }
+    .res-item {
+      width: 100%; background: none; border: none; color: #e4e4e7;
+      padding: 9px 14px; text-align: left; font-size: 13px; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .res-item:hover, .res-item.active { background: rgba(255, 255, 255, 0.1); }
+    .hd-tag {
+      color: #ef4444; font-size: 10px; font-weight: 900; margin-left: 4px; vertical-align: super;
+    }
+    .check-mark { color: #f8fafc; font-weight: 800; }
+
     #video { width: 100%; max-height: 480px; background: #000; display: block; }
 
     .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -97,8 +153,26 @@
         <span id="playerTitle">Now Playing</span>
         <button onclick="closePlayer()" style="background:#1e293b;color:#fff;border:1px solid #334155;padding:3px 8px;border-radius:4px;cursor:pointer;">Close</button>
       </div>
+
       <!-- সাধারণ HTML video ট্যাগ (কন্ট্রোলসহ) -->
       <video id="video" width="640" autoplay controls playsinline></video>
+
+      <!-- 1st & 2nd image: 17951:49:25 time + Resolution popup menu -->
+      <div class="player-controls-bar">
+        <div class="time-badge">
+          <span id="liveTimeDisplay">17951:49:25</span>
+          <span id="activeResLabel" style="color:#94a3b8;font-weight:600;">(Auto)</span>
+        </div>
+        <button class="res-trigger" type="button" onclick="toggleResolutionMenu()">Resolution ▾</button>
+      </div>
+
+      <div class="res-menu" id="resolutionMenu">
+        <div class="res-menu-head">
+          <span>Resolution</span>
+          <button class="res-close" type="button" onclick="toggleResolutionMenu(false)">✕</button>
+        </div>
+        <div class="res-list" id="resolutionList"></div>
+      </div>
     </div>
 
     <!-- ফিল্টার ট্যাব -->
@@ -157,6 +231,138 @@
     let activeIndex = 0;
     let currentTab = "all";
     let shakaInstance = null;
+    let selectedResolution = "auto";
+
+    // 1st image: 17951:49:25 live-ticking format
+    const BASE_SECONDS = (17951 * 3600) + (49 * 60) + 25;
+    const bootTimestamp = Date.now();
+
+    function formatLargeDuration(totalSec) {
+      const safe = Math.max(0, Math.floor(totalSec));
+      const h = Math.floor(safe / 3600);
+      const m = Math.floor((safe % 3600) / 60);
+      const s = safe % 60;
+      return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function updateLiveTimeCounter() {
+      const elapsed = Math.floor((Date.now() - bootTimestamp) / 1000);
+      const el = document.getElementById("liveTimeDisplay");
+      if (el) el.textContent = formatLargeDuration(BASE_SECONDS + elapsed);
+    }
+
+    function formatBitrate(bandwidth) {
+      if (!bandwidth) return "";
+      const mbps = bandwidth / 1_000_000;
+      if (mbps >= 1) {
+        const rounded = Number.isInteger(mbps) ? mbps : parseFloat(mbps.toFixed(1));
+        return ` (${rounded} Mbps)`;
+      }
+      return ` (${Math.round(bandwidth / 1000)} Kbps)`;
+    }
+
+    // 2nd image style Resolution list (Auto + available tracks / fallback presets)
+    function renderResolutionMenu() {
+      const listEl = document.getElementById("resolutionList");
+      if (!listEl) return;
+
+      const tracks = shakaInstance ? shakaInstance.getVariantTracks() : [];
+      const uniqueMap = new Map();
+
+      tracks.forEach((t) => {
+        if (!t.height) return;
+        const key = `${t.height}-${t.bandwidth || 0}`;
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, {
+            id: t.id,
+            height: t.height,
+            bandwidth: t.bandwidth || 0
+          });
+        }
+      });
+
+      const sortedTracks = [...uniqueMap.values()].sort((a, b) => {
+        if (b.height !== a.height) return b.height - a.height;
+        return b.bandwidth - a.bandwidth;
+      });
+
+      const fallbackPresets = [
+        { id: "1080-8", height: 1080, bandwidth: 8_000_000, hd: true },
+        { id: "1080-6.5", height: 1080, bandwidth: 6_500_000, hd: true },
+        { id: "720-5", height: 720, bandwidth: 5_000_000, hd: false },
+        { id: "720-2.5", height: 720, bandwidth: 2_500_000, hd: false },
+        { id: "540-0", height: 540, bandwidth: 0, hd: false },
+        { id: "396-1.3", height: 396, bandwidth: 1_300_000, hd: false },
+        { id: "396-899", height: 396, bandwidth: 899_000, hd: false },
+        { id: "396-449", height: 396, bandwidth: 449_000, hd: false },
+        { id: "288-0", height: 288, bandwidth: 0, hd: false }
+      ];
+
+      const itemsToShow = sortedTracks.length > 0 ? sortedTracks : fallbackPresets;
+
+      let html = itemsToShow.map((item) => {
+        const isActive = String(selectedResolution) === String(item.id);
+        const isHd = item.hd || item.height >= 1080;
+        const label = `${item.height}p${formatBitrate(item.bandwidth)}`;
+        return `
+          <button class="res-item ${isActive ? "active" : ""}" type="button" onclick="applyResolution('${item.id}', '${label}')">
+            <span>${label}${isHd ? `<span class="hd-tag">HD</span>` : ""}</span>
+            <span class="check-mark">${isActive ? "✓" : ""}</span>
+          </button>
+        `;
+      }).join("");
+
+      const autoActive = selectedResolution === "auto";
+      html += `
+        <button class="res-item ${autoActive ? "active" : ""}" type="button" onclick="applyResolution('auto', 'Auto')">
+          <span>Auto</span>
+          <span class="check-mark">${autoActive ? "✓" : ""}</span>
+        </button>
+      `;
+
+      listEl.innerHTML = html;
+    }
+
+    function applyResolution(resId, labelText) {
+      selectedResolution = resId;
+      const labelEl = document.getElementById("activeResLabel");
+      if (labelEl) labelEl.textContent = `(${labelText})`;
+
+      if (shakaInstance) {
+        if (resId === "auto") {
+          // নেট স্পিড বুঝে অটো কমবে-বাড়বে
+          shakaInstance.configure({ abr: { enabled: true } });
+        } else {
+          // ইউজারের সিলেক্ট করা রেজোলিউশনে লক করবে
+          shakaInstance.configure({ abr: { enabled: false } });
+          const tracks = shakaInstance.getVariantTracks();
+          const exact = tracks.find(t => String(t.id) === String(resId));
+          if (exact) {
+            shakaInstance.selectVariantTrack(exact, true);
+          } else {
+            const targetHeight = Number(String(resId).split("-")[0]);
+            const byHeight = tracks.find(t => t.height === targetHeight);
+            if (byHeight) shakaInstance.selectVariantTrack(byHeight, true);
+          }
+        }
+      }
+
+      renderResolutionMenu();
+      toggleResolutionMenu(false);
+    }
+
+    function toggleResolutionMenu(forceState) {
+      const menu = document.getElementById("resolutionMenu");
+      if (!menu) return;
+      if (typeof forceState === "boolean") {
+        menu.classList.toggle("open", forceState);
+      } else {
+        menu.classList.toggle("open");
+      }
+      if (menu.classList.contains("open")) {
+        renderResolutionMenu();
+      }
+    }
 
     async function initApp(streamConfig = STREAMS[activeIndex]) {
       // ব্রাউজার কম্প্যাটিবিলিটির জন্য পলিবিল ইনস্টল করা
@@ -171,9 +377,24 @@
         const player = new shaka.Player(video);
         shakaInstance = player;
 
+        // নেট স্পিড বুঝে অটো রেজোলিউশন অ্যাডজাস্ট (ABR) চালু রাখা
+        player.configure({
+          abr: {
+            enabled: true
+          }
+        });
+
         // এরর হ্যান্ডলিং
         player.addEventListener('error', (event) => {
           console.error('Error code', event.detail.code, 'object', event.detail);
+        });
+
+        // ম্যানিফেস্ট লোড হলে উপলব্ধ রেজোলিউশন মেনু আপডেট
+        player.addEventListener('manifestparsed', () => {
+          selectedResolution = "auto";
+          const labelEl = document.getElementById("activeResLabel");
+          if (labelEl) labelEl.textContent = "(Auto)";
+          renderResolutionMenu();
         });
 
         // যদি ClearKey DRM থাকে, তবে কনফিগারেশন যোগ করা
@@ -188,9 +409,11 @@
         try {
           // স্ট্রিম লোড করা (লিংকটি .mpd হোক বা .m3u8, Shaka প্লেয়ার অটো ডিটেক্ট করবে)
           await player.load(streamConfig.url);
+          renderResolutionMenu();
           console.log('Stream loaded successfully:', streamConfig.name);
         } catch (e) {
           console.error('Error loading stream', e);
+          renderResolutionMenu();
         }
       } else {
         console.error('Browser not supported!');
@@ -212,6 +435,7 @@
     }
 
     function closePlayer() {
+      toggleResolutionMenu(false);
       document.getElementById("playerSection").classList.remove("active");
     }
 
@@ -266,6 +490,9 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       renderMatches();
+      renderResolutionMenu();
+      updateLiveTimeCounter();
+      setInterval(updateLiveTimeCounter, 1000);
     });
   </script>
 </body>
