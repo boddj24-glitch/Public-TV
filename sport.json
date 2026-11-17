@@ -1,1 +1,79 @@
-
+[
+  {
+    "name": "Abudhabi Sports",
+    "category": "Sports",
+    "logo": "▶️",
+    "tone": "blue",
+    "url": "https://admn-live-cdn-lb.starzplayarabia.com/out/v1/admn_tv/abudhabi_sports_1/abudhabi_sports_1_dash_enc/index.mpd",
+    "useDrm": true,
+    "clearKeys": {
+      "e78769d87a41e15036a4fb8bfdf1371e": "37be0375dc9fe544c3c6de6a105f7c0a"
+    },
+    "drm": {
+      "scheme": "clearkey",
+      "license": "e78769d87a41e15036a4fb8bfdf1371e:37be0375dc9fe544c3c6de6a105f7c0a"
+    },
+    "logoUrl": "",
+    "fallbackLogo": "▶️"
+  },
+  {
+    "name": "TSN1 SPORTS FHD",
+    "category": "Sports",
+    "logo": "▶️",
+    "tone": "blue",
+    "url": "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/w0rehjjrwe/out/v1/69a2a7041395406b970598f61680e7cf/cenc.mpd",
+    "useDrm": true,
+    "clearKeys": {
+      "14eeabf30c14b7fbf3008c03099ce011": "17d2ac8dbc5429bd70af3433aa12158d"
+    },
+    "drm": {
+      "scheme": "clearkey",
+      "license": "14eeabf30c14b7fbf3008c03099ce011:17d2ac8dbc5429bd70af3433aa12158d"
+    },
+    "logoUrl": "",
+    "fallbackLogo": "▶️"
+  },
+  {
+    "name": "Premier sports 1",
+    "category": "Sports",
+    "logo": "▶️",
+    "tone": "blue",
+    "url": "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/m6sqanvm2m/out/v1/f6beb46c6e9a4132ad739f3ca27df6aa/cenc.mpd",
+    "useDrm": true,
+    "clearKeys": {
+      "1444f4235529f183f0a5a486befe9cdb": "e5e3fec67a1bb3472a2089c8a0a2557f"
+    },
+    "drm": {
+      "scheme": "clearkey",
+      "license": "1444f4235529f183f0a5a486befe9cdb:e5e3fec67a1bb3472a2089c8a0a2557f"
+    },
+    "logoUrl": "",
+    "fallbackLogo": "▶️"
+  },
+  {
+    "name": "Xoilacz.ca football",
+    "tvgId": "01a11291-2c1a-72fb-bf2d-bf03de6e974d",
+    "tvgName": "Sportv",
+    "category": "Sports",
+    "logo": "▶️",
+    "tone": "blue",
+    "url": "https://live2.jorvakstreamcache.com/live/channel19.m3u8",
+    "useDrm": false,
+    "clearKeys": {},
+    "logoUrl": "https://web.aynaott.com/storage/019dd92f-107c-7056-9e79-e5233f6e51d9/uploads/images/2026-10-06/images_6b43965cf8ff9e05973fde793d1ba4d2_playmist_sportv_logo_png_seeklogo_424355.png",
+    "fallbackLogo": "▶️"
+  },
+  {
+    "name": "Xoilacz.ca 2",
+    "tvgId": "01a11291-2c1a-72fb-bf2d-bf03de6e974d",
+    "tvgName": "Sportv",
+    "category": "Sports",
+    "logo": "▶️",
+    "tone": "blue",
+    "url": "https://live2.jorvakstreamcache.com/live/channel15.m3u8",
+    "useDrm": false,
+    "clearKeys": {},
+    "logoUrl": "https://web.aynaott.com/storage/019dd92f-107c-7056-9e79-e5233f6e51d9/uploads/images/2026-10-06/images_6b43965cf8ff9e05973fde793d1ba4d2_playmist_sportv_logo_png_seeklogo_424355.png",
+    "fallbackLogo": "▶️"
+  }
+]
