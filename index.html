@@ -234,7 +234,6 @@
       };
     }
 
-    // দেশের নাম ও পতাকা অটোমেটিক ডিটেক্ট করার স্মার্ট ইঞ্জিন (আপনার কিছু টাইপ করা লাগবে না)
     function getAutoTeamInfo(text) {
       const lower = (text || "").toLowerCase();
       const map = {
@@ -258,7 +257,6 @@
       return null;
     }
 
-    // সম্পূর্ণ অটোমেটিক রিয়্যাল-টাইম পার্সার (কোড নিজে বুঝবে কোনটি লাইভ আর কোনটি আপকামিং)
     function normalizeJsonItem(item, index = 0) {
       const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
       const defaultLogo = item.logoUrl || item.tvgLogo || item.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
@@ -266,18 +264,11 @@
       const sportCategory = (item.sport || item.category || "SPORTS").toUpperCase();
       const matchTitle = item.matchTitle || channelName;
 
-      // ডিফল্ট স্ট্যাটাস লাইভ, তবে সাধারণ চ্যানেলের নামের সাথে যদি 'vs' বা আপকামিং ম্যাচ নাম থাকে, 
-      // অথবা চ্যানেলে যদি সময় মেনশন করা না থাকে, তবে কোড রিয়্যাল-টাইমে চেক করবে।
       let calculatedStatus = "live";
       if (item.status) {
         calculatedStatus = item.status.toLowerCase();
-      } else {
-        // কোনো নির্দিষ্ট টাইম বা স্ট্যাটাস না থাকলে, সাধারণ চ্যানেলগুলো লাইভ দেখাবে 
-        // কিন্তু যদি চ্যানেলের নামে বা টাইটেলে ফিউচার টাইম বা নির্দিষ্ট কন্ডিশন থাকে তবে হ্যান্ডেল করবে
-        calculatedStatus = "live";
       }
 
-      // যদি চ্যানেলের নামের ভেতরে বা ম্যাচ টাইটেলে 'vs' থাকে, তবে কোড নিজে থেকেই দুই দল ও পতাকা আলাদা করে নেবে!
       let teamA = item.teamA;
       let teamB = item.teamB;
 
@@ -290,7 +281,6 @@
           teamA = getAutoTeamInfo(t1Name) || { name: t1Name, logo: defaultLogo };
           teamB = getAutoTeamInfo(t2Name) || { name: t2Name, logo: defaultLogo };
         } else {
-          // সাধারণ চ্যানেলগুলোর জন্য (যেমন Ten Cricket, Tapmad)
           const detectedTeam = getAutoTeamInfo(channelName);
           if (detectedTeam) {
             teamA = detectedTeam;
@@ -333,7 +323,7 @@
             name: title,
             sport: (groupMatch?.[1] || "SPORTS").toUpperCase(),
             logo: logoMatch?.[1] || "",
-            status: statusMatch ? statusMatch[1] : null
+            status: statusMatch ? statusMatch[1] : "live"
           };
         } else if (line.startsWith("#EXT")) {
           continue;
@@ -707,7 +697,7 @@
         <button class="tab-btn ${currentTab === 'all' ? 'active' : ''}" onclick="setTab('all')">All (${counts.all})</button>
         <button class="tab-btn ${currentTab === 'live' ? 'active' : ''}" onclick="setTab('live')">Live (${counts.live})</button>
         <button class="tab-btn ${currentTab === 'recent' ? 'active' : ''}" onclick="setTab('recent')">Recent (${counts.recent})</button>
-        <button class="tab-btn ${currentTab:: 'upcoming' ? 'active' : ''}" onclick="setTab('upcoming')">Upcoming (${counts.upcoming})</button>
+        <button class="tab-btn ${currentTab === 'upcoming' ? 'active' : ''}" onclick="setTab('upcoming')">Upcoming (${counts.upcoming})</button>
       `;
 
       const list = currentTab === "all"
