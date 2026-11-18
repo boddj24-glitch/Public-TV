@@ -459,17 +459,12 @@
       }
     }
 
-    // নিখুঁতভাবে সব প্লেয়ার এবং ভিডিও সোর্স রিসেট করার ফাংশন
-    function cleanupAllPlayers() {
-      const video = document.getElementById('video');
-      if (video) {
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-      }
+    // আগের প্লেয়ার পুরোপুরি মুছে নতুন চ্যানেলের জন্য প্রস্তুত করা
+    async function cleanupAllPlayers() {
       if (shakaInstance) {
         try {
-          shakaInstance.destroy();
+          await shakaInstance.unload();
+          await shakaInstance.destroy();
         } catch (_) {}
         shakaInstance = null;
       }
@@ -479,22 +474,27 @@
         } catch (_) {}
         hlsInstance = null;
       }
+      const video = document.getElementById('video');
+      if (video) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      }
     }
 
     async function initApp(streamConfig = STREAMS[activeIndex]) {
       if (!streamConfig || !streamConfig.url) return;
       const video = document.getElementById('video');
 
-      // আগের প্লেয়ারের যেকোনো ডেটা বা মেমোরি পুরোপুরি মুছে ফেলা হলো
-      cleanupAllPlayers();
+      // চ্যানেল পাল্টানোর সাথে সাথেই আগের প্লেয়ার ইনস্ট্যান্স সম্পূর্ণ ক্লিয়ার করা হচ্ছে
+      await cleanupAllPlayers();
 
-      // লিংকের এক্সটেনশন বা ধরন নিখুঁতভাবে চেক করার লজিক
       const cleanUrl = streamConfig.url.trim();
       const urlLower = cleanUrl.toLowerCase();
       const isM3u8 = urlLower.includes('.m3u8') || urlLower.indexOf('m3u8') !== -1;
 
       if (isM3u8) {
-        // .m3u8 লিংকের জন্য HLS.js
+        // HLS.js for .m3u8
         if (Hls.isSupported()) {
           const hls = new Hls({
             xhrSetup: function (xhr, url) {
@@ -534,7 +534,7 @@
           });
         }
       } else {
-        // .mpd বা অন্যান্য লিংকের জন্য Shaka Player
+        // Shaka Player for .mpd
         shaka.polyfill.installAll();
 
         if (shaka.Player.isBrowserSupported()) {
@@ -594,10 +594,10 @@
       await initApp(streamConfig);
     }
 
-    function closePlayer() {
+    async function closePlayer() {
       toggleResolutionMenu(false);
       hideWaitNotice();
-      cleanupAllPlayers();
+      await cleanupAllPlayers();
       document.getElementById("playerSection").classList.remove("active");
     }
 
