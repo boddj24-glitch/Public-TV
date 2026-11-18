@@ -1,1 +1,18 @@
-
+{
+  "name": "Premier sports 1",
+  "category": "Sports",
+  "logo": "▶️",
+  "tone": "blue",
+  "url": "https://otte.cache.aiv-cdn.net/bom-nitro/live/clients/dash/enc/m6sqanvm2m/out/v1/f6beb46c6e9a4132ad739f3ca27df6aa/cenc.mpd",
+  "useDrm": true,
+  "clearKeys": {
+    "1444f4235529f183f0a5a486befe9cdb": "e5e3fec67a1bb3472a2089c8a0a2557f"
+  },
+  "drm": {
+    "scheme": "clearkey",
+    "license": "1444f4235529f183f0a5a486befe9cdb:e5e3fec67a1bb3472a2089c8a0a2557f"
+  },
+  "logoUrl": "",
+  "fallbackLogo": "▶️",
+  "startTime": "2026-11-10T14:00:00"
+}
