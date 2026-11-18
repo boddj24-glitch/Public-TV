@@ -5,15 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PB SPORTS TV — Shaka Player (MPD / M3U8)</title>
   
-  <!-- Social Media Preview Meta Tags -->
   <meta property="og:title" id="ogTitle" content="PB SPORTS TV — Live Streaming" />
   <meta property="og:description" content="Watch live HD streaming of Cricket, Football & League matches." />
   <meta property="og:image" id="ogImage" content="https://i.postimg.cc/HntSg3xw/20240823_024624.png" />
   <meta property="og:type" content="website" />
 
-  <!-- Shaka Player compiled library -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
-  <!-- HLS.js for M3U8 support -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -90,7 +87,6 @@
     }
     .res-trigger:hover { border-color: #f97316; }
 
-    /* Resolution Menu */
     .res-menu {
       display: none;
       position: absolute;
@@ -238,60 +234,41 @@
       };
     }
 
-    // চ্যানেলের নাম দেখে অটোমেটিক ম্যাচ টাইটেল, দেশ ও লোগো সেট করার স্মার্ট ফাংশন
-    function getAutoMatchedSportInfo(channelName, defaultLogo) {
-      const nameLower = (channelName || "").toLowerCase();
-      
-      if (nameLower.includes("ten cricket") || nameLower.includes("willow")) {
-        return {
-          matchTitle: "BANGLADESH VS SOUTH AFRICA",
-          sport: "CRICKET",
-          teamA: { name: "Bangladesh", logo: "https://flagcdn.com/w80/bd.png" },
-          teamB: { name: "South Africa", logo: "https://flagcdn.com/w80/za.png" },
-          status: "live"
-        };
-      } else if (nameLower.includes("tapmad")) {
-        return {
-          matchTitle: "INDIA VS PAKISTAN",
-          sport: "CRICKET",
-          teamA: { name: "India", logo: "https://flagcdn.com/w80/in.png" },
-          teamB: { name: "Pakistan", logo: "https://flagcdn.com/w80/pk.png" },
-          status: "live"
-        };
-      } else if (nameLower.includes("sportv") || nameLower.includes("xoilacz")) {
-        return {
-          matchTitle: "BRAZIL VS ARGENTINA",
-          sport: "FOOTBALL",
-          teamA: { name: "Brazil", logo: "https://flagcdn.com/w80/br.png" },
-          teamB: { name: "Argentina", logo: "https://flagcdn.com/w80/ar.png" },
-          status: "live"
-        };
-      }
-
-      return {
-        matchTitle: channelName,
-        sport: "SPORTS",
-        teamA: { name: channelName, logo: defaultLogo },
-        teamB: { name: "SPORTS TV", logo: defaultLogo },
-        status: "live"
-      };
-    }
-
+    // নিখুঁত পার্সিং: ফাইল থেকে যা দেওয়া থাকবে, অবিকল সেটাই রিড করবে (কোনো অনুমান করবে না)
     function normalizeJsonItem(item, index = 0) {
       const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
       const defaultLogo = item.logoUrl || item.tvgLogo || item.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
       const channelName = item.name || `Channel ${index + 1}`;
-      
-      const autoInfo = getAutoMatchedSportInfo(channelName, defaultLogo);
+      const sportCategory = (item.sport || item.category || "SPORTS").toUpperCase();
+      const matchTitle = item.matchTitle || channelName;
+
+      // স্ট্যাটাস ফাইল থেকে যা পাবেন তাই নেবে (ডিফল্ট লাইভ নয়, যদি স্ট্যাটাস দেওয়া না থাকে)
+      let calculatedStatus = "live";
+      if (item.status) {
+        calculatedStatus = item.status.toLowerCase();
+      } else if (item.startTime) {
+        let timeStr = item.startTime.trim();
+        if (!timeStr.includes("Z") && !timeStr.includes("+") && !timeStr.includes("-")) {
+          timeStr += "+06:00";
+        }
+        const matchTime = new Date(timeStr).getTime();
+        const currentTime = Date.now();
+        if (!isNaN(matchTime) && currentTime < matchTime) {
+          calculatedStatus = "upcoming";
+        }
+      }
+
+      const teamA = item.teamA || { name: channelName, logo: defaultLogo };
+      const teamB = item.teamB || { name: sportCategory, logo: defaultLogo };
 
       return {
         name: channelName,
         hot: item.hot ?? true,
-        sport: item.sport || autoInfo.sport,
-        matchTitle: item.matchTitle || autoInfo.matchTitle,
-        status: item.status || autoInfo.status,
-        teamA: item.teamA || autoInfo.teamA,
-        teamB: item.teamB || autoInfo.teamB,
+        sport: sportCategory,
+        matchTitle: matchTitle,
+        status: calculatedStatus,
+        teamA: teamA,
+        teamB: teamB,
         url: drmInfo.url,
         useDrm: Boolean(item.useDrm || drmInfo.useDrm),
         clearKeys: Object.keys(item.clearKeys || {}).length > 0 ? item.clearKeys : drmInfo.clearKeys
@@ -306,22 +283,32 @@
       for (const line of lines) {
         if (line.startsWith("#EXTINF:")) {
           const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
+          const groupMatch = line.match(/group-title="([^"]*)"/i);
+          const statusMatch = line.match(/status="([^"]*)"/i);
           const commaIdx = line.lastIndexOf(",");
           const title = commaIdx !== -1 ? line.slice(commaIdx + 1).trim() : "Live Channel";
           
           currentMeta = {
             name: title,
-            logo: logoMatch?.[1] || ""
+            sport: (groupMatch?.[1] || "SPORTS").toUpperCase(),
+            logo: logoMatch?.[1] || "",
+            status: statusMatch ? statusMatch[1] : "live"
           };
         } else if (line.startsWith("#EXT")) {
           continue;
         } else if (currentMeta) {
           const drmInfo = parsePipeDrm(line);
           if (drmInfo.url) {
+            const defaultLogo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
             const dummyItem = {
               name: currentMeta.name,
+              sport: currentMeta.sport,
+              matchTitle: currentMeta.name,
+              status: currentMeta.status,
               url: drmInfo.url,
-              logoUrl: currentMeta.logo
+              useDrm: drmInfo.useDrm,
+              clearKeys: drmInfo.clearKeys,
+              logoUrl: defaultLogo
             };
             items.push(normalizeJsonItem(dummyItem, items.length));
           }
