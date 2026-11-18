@@ -261,7 +261,6 @@
       return null;
     }
 
-    // নিখুঁত রিয়্যাল-টাইম শিডিউল এবং স্ট্যাটাস চেকার ইঞ্জিন
     function normalizeJsonItem(item, index = 0) {
       const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
       const defaultLogo = item.logoUrl || item.tvgLogo || item.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
@@ -272,7 +271,6 @@
       let calculatedStatus = item.status ? item.status.toLowerCase() : "";
       let displayTime = "LIVE NOW";
 
-      // যদি ফাইলে সরাসরি 'startTime' দেওয়া থাকে, তবে কোড নিজে সময় তুলনা করে লাইভ বা আপকামिंग সেট করবে
       if (item.startTime) {
         let timeStr = item.startTime.trim();
         if (!timeStr.includes("Z") && !timeStr.includes("+") && !timeStr.includes("-")) {
@@ -299,7 +297,6 @@
           }
         }
       } else {
-        // যদি startTime না থাকে, তবে স্ট্যাটাস বা নামের ওপর ভিত্তি করে হ্যান্ডেল করবে
         if (calculatedStatus === "upcoming") {
           displayTime = item.time || "Upcoming";
         } else {
@@ -421,10 +418,15 @@
       STREAMS = combined;
       renderMatches();
 
+      // এখানে সরাসরি ?match=1 দিলে ১ নম্বর চ্যানেল (ইনডেক্স 0) প্লে হবে
       const urlParams = new URLSearchParams(window.location.search);
-      const matchIdx = urlParams.get('match');
-      if (matchIdx !== null && STREAMS[Number(matchIdx)]) {
-        playStream(Number(matchIdx));
+      const matchParam = urlParams.get('match');
+      if (matchParam !== null) {
+        const userNum = Number(matchParam);
+        const targetIndex = userNum - 1; // ১ বিয়োগ করা হলো যাতে 1 দিলে 1 নম্বর চ্যানেলই প্লে হয়
+        if (STREAMS[targetIndex]) {
+          playStream(targetIndex);
+        }
       }
     }
 
