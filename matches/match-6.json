@@ -1,1 +1,10 @@
-
+{
+  "name": "Tapmad Live",
+  "sport": "SPORTS",
+  "matchTitle": "Tapmad Live Stream",
+  "status": "upcoming",
+  "startTime": "2026-11-18T16:00:00",
+  "hot": true,
+  "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/Tapmad_logo.png",
+  "url": "https://seriealeague.akamaized.net/hls/live/2107107/A1@25853-tapmad/master.m3u8"
+}
