@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PB SPORTS TV — Shaka Player (M3U8)</title>
+  <title>PB SPORTS TV — Shaka Player (MPD / M3U8)</title>
   <!-- Shaka Player compiled library -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
-  <!-- HLS.js plugin for Shaka Player to support M3U8 properly -->
+  <!-- Mux.js for HLS (.m3u8) playback support in Shaka -->
   <script src="https://cdn.jsdelivr.net/npm/mux.js@7.3.0/dist/mux.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -204,14 +204,29 @@
     let shakaInstance = null;
     let selectedResolution = "auto";
 
-    function parsePipeDrm(rawUrl) {
-      if (!rawUrl || typeof rawUrl !== "string") return { url: "" };
-      const [cleanUrl] = rawUrl.split("|");
-      return { url: (cleanUrl || "").trim() };
+    function parsePipeDrm(rawUrl, clearKeys = {}) {
+      if (!rawUrl || typeof rawUrl !== "string") {
+        return { url: "", useDrm: false, clearKeys: {} };
+      }
+      const [cleanUrl, queryPart] = rawUrl.split("|");
+      const parsedKeys = { ...clearKeys };
+      if (queryPart) {
+        const params = new URLSearchParams(queryPart);
+        const license = params.get("drmLicense");
+        if (license && license.includes(":")) {
+          const [kid, key] = license.split(":");
+          if (kid && key) parsedKeys[kid.trim()] = key.trim();
+        }
+      }
+      return {
+        url: (cleanUrl || "").trim(),
+        useDrm: Object.keys(parsedKeys).length > 0,
+        clearKeys: parsedKeys
+      };
     }
 
     function normalizeJsonItem(item, index = 0) {
-      const parsed = parsePipeDrm(item.url || "");
+      const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
       const logo = item.logoUrl || item.tvgLogo || item.teamA?.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
       return {
         name: item.name || `Channel ${index + 1}`,
@@ -221,7 +236,9 @@
         status: item.status || "live",
         teamA: item.teamA || { name: item.name || "Team A", logo },
         teamB: item.teamB || { name: item.category || "LIVE", logo },
-        url: parsed.url
+        url: drmInfo.url,
+        useDrm: Boolean(item.useDrm || drmInfo.useDrm),
+        clearKeys: Object.keys(item.clearKeys || {}).length > 0 ? item.clearKeys : drmInfo.clearKeys
       };
     }
 
@@ -246,8 +263,8 @@
         } else if (line.startsWith("#EXT")) {
           continue;
         } else if (currentMeta) {
-          const parsed = parsePipeDrm(line);
-          if (parsed.url) {
+          const drmInfo = parsePipeDrm(line);
+          if (drmInfo.url) {
             const logo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
             items.push({
               name: currentMeta.name,
@@ -257,7 +274,9 @@
               status: currentMeta.status,
               teamA: { name: currentMeta.name, logo },
               teamB: { name: "LIVE", logo },
-              url: parsed.url
+              url: drmInfo.url,
+              useDrm: drmInfo.useDrm,
+              clearKeys: drmInfo.clearKeys
             });
           }
           currentMeta = null;
@@ -398,24 +417,36 @@
 
       if (shaka.Player.isBrowserSupported()) {
         const video = document.getElementById('video');
-        if (!shakaInstance) {
-          shakaInstance = new shaka.Player(video);
+        if (shakaInstance) {
+          try {
+            await shakaInstance.destroy();
+          } catch (_) {}
+          shakaInstance = null;
         }
 
-        shakaInstance.configure({ abr: { enabled: true } });
+        const player = new shaka.Player(video);
+        shakaInstance = player;
 
-        shakaInstance.addEventListener('error', (event) => {
+        player.configure({ abr: { enabled: true } });
+
+        player.addEventListener('error', (event) => {
           console.error('Shaka Error:', event.detail);
           showWaitNotice(`স্ট্রিম লোড হচ্ছে না (Error: ${event.detail.code})`);
         });
 
+        if (streamConfig.useDrm && Object.keys(streamConfig.clearKeys).length > 0) {
+          player.configure({ drm: { clearKeys: streamConfig.clearKeys } });
+        } else {
+          player.configure({ drm: { clearKeys: {} } });
+        }
+
         try {
-          await shakaInstance.load(streamConfig.url);
+          await player.load(streamConfig.url);
           renderResolutionMenu();
           video.play().catch(() => {});
-          console.log('M3U8 Stream loaded successfully with Shaka Player');
+          console.log('Stream loaded successfully with Shaka Player');
         } catch (e) {
-          console.error('Error loading M3U8 stream with Shaka:', e);
+          console.error('Error loading stream with Shaka:', e);
           showWaitNotice("স্ট্রিমটি প্লে হতে সমস্যা করছে!");
         }
       } else {
@@ -441,7 +472,8 @@
       toggleResolutionMenu(false);
       hideWaitNotice();
       if (shakaInstance) {
-        shakaInstance.unload();
+        shakaInstance.destroy();
+        shakaInstance = null;
       }
       document.getElementById("playerSection").classList.remove("active");
     }
