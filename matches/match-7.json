@@ -1,1 +1,10 @@
-
+{
+  "name": "Sportv",
+  "sport": "SPORTS",
+  "matchTitle": "Bangladesh vs India",
+  "status": "upcoming",
+  "startTime": "2026-11-18T18:00:00",
+  "hot": true,
+  "logo": "https://web.aynaott.com/storage/019dd92f-107c-7056-9e79-e5233f6e51d9/uploads/images/2026-10-06/images_6b43965cf8ff9e05973fde793d1ba4d2_playmist_sportv_logo_png_seeklogo_424355.png",
+  "url": "https://live2.jorvakstreamcache.com/live/channel19.m3u8"
+}
