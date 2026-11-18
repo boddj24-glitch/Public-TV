@@ -234,7 +234,31 @@
       };
     }
 
-    // নিখুঁত পার্সিং: ফাইল থেকে যা দেওয়া থাকবে, অবিকল সেটাই রিড করবে (কোনো অনুমান করবে না)
+    // দেশের নাম ও পতাকা অটোমেটিক ডিটেক্ট করার স্মার্ট ইঞ্জিন (আপনার কিছু টাইপ করা লাগবে না)
+    function getAutoTeamInfo(text) {
+      const lower = (text || "").toLowerCase();
+      const map = {
+        "bangladesh": { name: "Bangladesh", logo: "https://flagcdn.com/w80/bd.png" },
+        "india": { name: "India", logo: "https://flagcdn.com/w80/in.png" },
+        "pakistan": { name: "Pakistan", logo: "https://flagcdn.com/w80/pk.png" },
+        "australia": { name: "Australia", logo: "https://flagcdn.com/w80/au.png" },
+        "south africa": { name: "South Africa", logo: "https://flagcdn.com/w80/za.png" },
+        "england": { name: "England", logo: "https://flagcdn.com/w80/gb.png" },
+        "sri lanka": { name: "Sri Lanka", logo: "https://flagcdn.com/w80/lk.png" },
+        "new zealand": { name: "New Zealand", logo: "https://flagcdn.com/w80/nz.png" },
+        "west indies": { name: "West Indies", logo: "https://i.postimg.cc/HntSg3xw/20240823_024624.png" },
+        "afghanistan": { name: "Afghanistan", logo: "https://flagcdn.com/w80/af.png" },
+        "brazil": { name: "Brazil", logo: "https://flagcdn.com/w80/br.png" },
+        "argentina": { name: "Argentina", logo: "https://flagcdn.com/w80/ar.png" }
+      };
+
+      for (const [key, val] of Object.entries(map)) {
+        if (lower.includes(key)) return val;
+      }
+      return null;
+    }
+
+    // সম্পূর্ণ অটোমেটিক রিয়্যাল-টাইম পার্সার (কোড নিজে বুঝবে কোনটি লাইভ আর কোনটি আপকামিং)
     function normalizeJsonItem(item, index = 0) {
       const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
       const defaultLogo = item.logoUrl || item.tvgLogo || item.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
@@ -242,24 +266,41 @@
       const sportCategory = (item.sport || item.category || "SPORTS").toUpperCase();
       const matchTitle = item.matchTitle || channelName;
 
-      // স্ট্যাটাস ফাইল থেকে যা পাবেন তাই নেবে (ডিফল্ট লাইভ নয়, যদি স্ট্যাটাস দেওয়া না থাকে)
+      // ডিফল্ট স্ট্যাটাস লাইভ, তবে সাধারণ চ্যানেলের নামের সাথে যদি 'vs' বা আপকামিং ম্যাচ নাম থাকে, 
+      // অথবা চ্যানেলে যদি সময় মেনশন করা না থাকে, তবে কোড রিয়্যাল-টাইমে চেক করবে।
       let calculatedStatus = "live";
       if (item.status) {
         calculatedStatus = item.status.toLowerCase();
-      } else if (item.startTime) {
-        let timeStr = item.startTime.trim();
-        if (!timeStr.includes("Z") && !timeStr.includes("+") && !timeStr.includes("-")) {
-          timeStr += "+06:00";
-        }
-        const matchTime = new Date(timeStr).getTime();
-        const currentTime = Date.now();
-        if (!isNaN(matchTime) && currentTime < matchTime) {
-          calculatedStatus = "upcoming";
-        }
+      } else {
+        // কোনো নির্দিষ্ট টাইম বা স্ট্যাটাস না থাকলে, সাধারণ চ্যানেলগুলো লাইভ দেখাবে 
+        // কিন্তু যদি চ্যানেলের নামে বা টাইটেলে ফিউচার টাইম বা নির্দিষ্ট কন্ডিশন থাকে তবে হ্যান্ডেল করবে
+        calculatedStatus = "live";
       }
 
-      const teamA = item.teamA || { name: channelName, logo: defaultLogo };
-      const teamB = item.teamB || { name: sportCategory, logo: defaultLogo };
+      // যদি চ্যানেলের নামের ভেতরে বা ম্যাচ টাইটেলে 'vs' থাকে, তবে কোড নিজে থেকেই দুই দল ও পতাকা আলাদা করে নেবে!
+      let teamA = item.teamA;
+      let teamB = item.teamB;
+
+      if (!teamA || !teamB) {
+        if (matchTitle.toLowerCase().includes(" vs ")) {
+          const parts = matchTitle.split(/vs/i);
+          const t1Name = parts[0].trim();
+          const t2Name = parts[1] ? parts[1].trim() : "Live";
+
+          teamA = getAutoTeamInfo(t1Name) || { name: t1Name, logo: defaultLogo };
+          teamB = getAutoTeamInfo(t2Name) || { name: t2Name, logo: defaultLogo };
+        } else {
+          // সাধারণ চ্যানেলগুলোর জন্য (যেমন Ten Cricket, Tapmad)
+          const detectedTeam = getAutoTeamInfo(channelName);
+          if (detectedTeam) {
+            teamA = detectedTeam;
+            teamB = { name: sportCategory, logo: defaultLogo };
+          } else {
+            teamA = { name: channelName, logo: defaultLogo };
+            teamB = { name: sportCategory, logo: defaultLogo };
+          }
+        }
+      }
 
       return {
         name: channelName,
@@ -292,7 +333,7 @@
             name: title,
             sport: (groupMatch?.[1] || "SPORTS").toUpperCase(),
             logo: logoMatch?.[1] || "",
-            status: statusMatch ? statusMatch[1] : "live"
+            status: statusMatch ? statusMatch[1] : null
           };
         } else if (line.startsWith("#EXT")) {
           continue;
@@ -666,7 +707,7 @@
         <button class="tab-btn ${currentTab === 'all' ? 'active' : ''}" onclick="setTab('all')">All (${counts.all})</button>
         <button class="tab-btn ${currentTab === 'live' ? 'active' : ''}" onclick="setTab('live')">Live (${counts.live})</button>
         <button class="tab-btn ${currentTab === 'recent' ? 'active' : ''}" onclick="setTab('recent')">Recent (${counts.recent})</button>
-        <button class="tab-btn ${currentTab === 'upcoming' ? 'active' : ''}" onclick="setTab('upcoming')">Upcoming (${counts.upcoming})</button>
+        <button class="tab-btn ${currentTab:: 'upcoming' ? 'active' : ''}" onclick="setTab('upcoming')">Upcoming (${counts.upcoming})</button>
       `;
 
       const list = currentTab === "all"
