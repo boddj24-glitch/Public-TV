@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PB SPORTS TV — Shaka Player (MPD / M3U8)</title>
   
+  <!-- Social Media Preview Meta Tags -->
   <meta property="og:title" id="ogTitle" content="PB SPORTS TV — Live Streaming" />
   <meta property="og:description" content="Watch live HD streaming of Cricket, Football & League matches." />
   <meta property="og:image" id="ogImage" content="https://i.postimg.cc/HntSg3xw/20240823_024624.png" />
   <meta property="og:type" content="website" />
 
+  <!-- Shaka Player compiled library -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
+  <!-- HLS.js for M3U8 support -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -87,6 +90,7 @@
     }
     .res-trigger:hover { border-color: #f97316; }
 
+    /* Resolution Menu */
     .res-menu {
       display: none;
       position: absolute;
@@ -234,36 +238,85 @@
       };
     }
 
-    // স্মার্ট টাইম ও স্ট্যাটাস ডিটেকশন লজিক
+    // দেশের নাম ও পতাকা অটোমেটিক ডিটেক্ট করার ম্যাপিং ফাংশন
+    function getTeamInfoFromName(fullName) {
+      if (!fullName) return null;
+      const nameLower = fullName.toLowerCase();
+      const teamsMap = {
+        "bangladesh": { name: "Bangladesh", logo: "https://flagcdn.com/w80/bd.png" },
+        "south africa": { name: "South Africa", logo: "https://flagcdn.com/w80/za.png" },
+        "india": { name: "India", logo: "https://flagcdn.com/w80/in.png" },
+        "australia": { name: "Australia", logo: "https://flagcdn.com/w80/au.png" },
+        "pakistan": { name: "Pakistan", logo: "https://flagcdn.com/w80/pk.png" },
+        "england": { name: "England", logo: "https://flagcdn.com/w80/gb.png" },
+        "sri lanka": { name: "Sri Lanka", logo: "https://flagcdn.com/w80/lk.png" },
+        "new zealand": { name: "New Zealand", logo: "https://flagcdn.com/w80/nz.png" },
+        "west indies": { name: "West Indies", logo: "https://i.postimg.cc/HntSg3xw/20240823_024624.png" },
+        "afghanistan": { name: "Afghanistan", logo: "https://flagcdn.com/w80/af.png" }
+      };
+
+      for (const [key, val] of Object.entries(teamsMap)) {
+        if (nameLower.includes(key)) {
+          return val;
+        }
+      }
+      return null;
+    }
+
+    // স্মার্ট অটো-ফিল এবং বাংলাদেশ সময় (BST / UTC+6) অনুযায়ী স্ট্যাটাস চেক ফাংশন
     function normalizeJsonItem(item, index = 0) {
       const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
       const defaultLogo = item.logoUrl || item.tvgLogo || item.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
       const channelName = item.name || `Channel ${index + 1}`;
       const sportCategory = (item.sport || item.category || "SPORTS").toUpperCase();
+      const matchTitle = item.matchTitle || item.name || channelName;
 
       let calculatedStatus = "live";
 
-      // যদি JSON ফাইলে 'startTime' দেওয়া থাকে (যেমন: "2026-11-10T14:30:00")
+      // বাংলাদেশ সময় (BST / UTC+6) অনুযায়ী সময় হিসাব
       if (item.startTime) {
-        const matchTime = new Date(item.startTime).getTime();
+        let timeStr = item.startTime;
+        if (!timeStr.includes("Z") && !timeStr.includes("+")) {
+          timeStr += "+06:00";
+        }
+        const matchTime = new Date(timeStr).getTime();
         const currentTime = Date.now();
-        // যদি বর্তমান সময় ম্যাচের সময়ের চেয়ে কম হয়, তবে সেটি আপকামিং দেখাবে
         if (currentTime < matchTime) {
           calculatedStatus = "upcoming";
         }
       } else if (item.status) {
-        // যদি ম্যানুয়াল স্ট্যাটাস দেওয়া থাকে
         calculatedStatus = item.status.toLowerCase() === "upcoming" ? "upcoming" : "live";
+      }
+
+      // অটোমেটিক টিম ও লোগো ডিটেকশন
+      let teamA = item.teamA;
+      let teamB = item.teamB;
+
+      if (!teamA || !teamB) {
+        if (matchTitle.toLowerCase().includes(" vs ")) {
+          const parts = matchTitle.split(/vs/i);
+          const t1Name = parts[0].trim();
+          const t2Name = parts[1] ? parts[1].trim() : "Live";
+
+          const foundT1 = getTeamInfoFromName(t1Name);
+          const foundT2 = getTeamInfoFromName(t2Name);
+
+          teamA = foundT1 || { name: t1Name, logo: defaultLogo };
+          teamB = foundT2 || { name: t2Name, logo: defaultLogo };
+        } else {
+          teamA = { name: channelName, logo: defaultLogo };
+          teamB = { name: sportCategory, logo: defaultLogo };
+        }
       }
 
       return {
         name: channelName,
         hot: item.hot ?? true,
         sport: sportCategory,
-        matchTitle: item.matchTitle || channelName,
+        matchTitle: matchTitle,
         status: calculatedStatus,
-        teamA: item.teamA || { name: channelName, logo: defaultLogo },
-        teamB: item.teamB || { name: sportCategory, logo: defaultLogo },
+        teamA: teamA,
+        teamB: teamB,
         url: drmInfo.url,
         useDrm: Boolean(item.useDrm || drmInfo.useDrm),
         clearKeys: Object.keys(item.clearKeys || {}).length > 0 ? item.clearKeys : drmInfo.clearKeys
@@ -279,12 +332,15 @@
         if (line.startsWith("#EXTINF:")) {
           const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
           const groupMatch = line.match(/group-title="([^"]*)"/i);
+          const timeMatch = line.match(/starttime="([^"]*)"/i);
           const commaIdx = line.lastIndexOf(",");
           const title = commaIdx !== -1 ? line.slice(commaIdx + 1).trim() : "Live Channel";
+          
           currentMeta = {
             name: title,
             sport: (groupMatch?.[1] || "SPORTS").toUpperCase(),
-            logo: logoMatch?.[1] || ""
+            logo: logoMatch?.[1] || "",
+            startTime: timeMatch ? timeMatch[1] : null
           };
         } else if (line.startsWith("#EXT")) {
           continue;
@@ -292,18 +348,17 @@
           const drmInfo = parsePipeDrm(line);
           if (drmInfo.url) {
             const defaultLogo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
-            items.push({
+            const dummyItem = {
               name: currentMeta.name,
-              hot: true,
               sport: currentMeta.sport,
               matchTitle: currentMeta.name,
-              status: "live",
-              teamA: { name: currentMeta.name, logo: defaultLogo },
-              teamB: { name: currentMeta.sport, logo: defaultLogo },
+              startTime: currentMeta.startTime,
               url: drmInfo.url,
               useDrm: drmInfo.useDrm,
-              clearKeys: drmInfo.clearKeys
-            });
+              clearKeys: drmInfo.clearKeys,
+              logoUrl: defaultLogo
+            };
+            items.push(normalizeJsonItem(dummyItem, items.length));
           }
           currentMeta = null;
         }
