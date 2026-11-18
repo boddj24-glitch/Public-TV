@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PB SPORTS TV — Shaka Player (MPD / M3U8)</title>
-  <!-- Shaka Player compiled library -->
+  <title>PB SPORTS TV — MPD & M3U8 Player</title>
+  <!-- Shaka Player for MPD -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
-  <!-- Mux.js for HLS (.m3u8) playback support in Shaka -->
-  <script src="https://cdn.jsdelivr.net/npm/mux.js@7.3.0/dist/mux.js"></script>
+  <!-- HLS.js for M3U8 -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background: #070b14; color: #f1f5f9; padding: 14px; }
@@ -202,6 +202,7 @@
     let activeIndex = 0;
     let currentTab = "all";
     let shakaInstance = null;
+    let hlsInstance = null;
     let selectedResolution = "auto";
 
     function parsePipeDrm(rawUrl, clearKeys = {}) {
@@ -343,9 +344,13 @@
     function renderResolutionMenu() {
       const listEl = document.getElementById("resolutionList");
       if (!listEl) return;
-      const tracks = shakaInstance ? shakaInstance.getVariantTracks() : [];
-      const uniqueMap = new Map();
+      
+      let tracks = [];
+      if (shakaInstance) {
+        tracks = shakaInstance.getVariantTracks();
+      }
 
+      const uniqueMap = new Map();
       tracks.forEach((t) => {
         if (!t.height) return;
         const key = `${t.height}-${t.bandwidth || 0}`;
@@ -410,47 +415,85 @@
       }
     }
 
+    // ক্লিনআপ ফাংশন (আগের যেকোনো প্লেয়ার সচল থাকলে তা ডিস্টয় করবে)
+    function cleanupPlayers() {
+      if (shakaInstance) {
+        shakaInstance.destroy();
+        shakaInstance = null;
+      }
+      if (hlsInstance) {
+        hlsInstance.destroy();
+        hlsInstance = null;
+      }
+    }
+
     async function initApp(streamConfig = STREAMS[activeIndex]) {
       if (!streamConfig || !streamConfig.url) return;
+      const video = document.getElementById('video');
       
-      shaka.polyfill.installAll();
+      cleanupPlayers();
 
-      if (shaka.Player.isBrowserSupported()) {
-        const video = document.getElementById('video');
-        if (shakaInstance) {
-          try {
-            await shakaInstance.destroy();
-          } catch (_) {}
-          shakaInstance = null;
-        }
+      const isM3u8 = streamConfig.url.includes('.m3u8') || streamConfig.url.includes('m3u8');
 
-        const player = new shaka.Player(video);
-        shakaInstance = player;
-
-        player.configure({ abr: { enabled: true } });
-
-        player.addEventListener('error', (event) => {
-          console.error('Shaka Error:', event.detail);
-          showWaitNotice(`স্ট্রিম লোড হচ্ছে না (Error: ${event.detail.code})`);
-        });
-
-        if (streamConfig.useDrm && Object.keys(streamConfig.clearKeys).length > 0) {
-          player.configure({ drm: { clearKeys: streamConfig.clearKeys } });
-        } else {
-          player.configure({ drm: { clearKeys: {} } });
-        }
-
-        try {
-          await player.load(streamConfig.url);
-          renderResolutionMenu();
-          video.play().catch(() => {});
-          console.log('Stream loaded successfully with Shaka Player');
-        } catch (e) {
-          console.error('Error loading stream with Shaka:', e);
-          showWaitNotice("স্ট্রিমটি প্লে হতে সমস্যা করছে!");
+      if (isM3u8) {
+        // এইচএলএস (.m3u8) লিংকের জন্য Hls.js ব্যবহার করা হবে
+        if (Hls.isSupported()) {
+          const hls = new Hls();
+          hlsInstance = hls;
+          hls.loadSource(streamConfig.url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            video.play().catch(() => {});
+          });
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+              switch (data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                  hls.startLoad();
+                  break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                  hls.recoverMediaError();
+                  break;
+                default:
+                  showWaitNotice("স্ট্রিম প্লে হতে সমস্যা হচ্ছে!");
+                  break;
+              }
+            }
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          // সাফারি বা আইওএস ডিভাইসের জন্য নেট্টিভ সাপোর্ট
+          video.src = streamConfig.url;
+          video.addEventListener('loadedmetadata', () => {
+            video.play().catch(() => {});
+          });
         }
       } else {
-        console.error('Browser not supported for Shaka Player!');
+        // এমপিডি (.mpd) বা অন্যান্য লিংকের জন্য Shaka Player ব্যবহার করা হবে
+        shaka.polyfill.installAll();
+        if (shaka.Player.isBrowserSupported()) {
+          const player = new shaka.Player(video);
+          shakaInstance = player;
+
+          player.configure({ abr: { enabled: true } });
+
+          player.addEventListener('error', (event) => {
+            console.error('Shaka Error:', event.detail);
+            showWaitNotice(`স্ট্রিম লোড হচ্ছে না (Error: ${event.detail.code})`);
+          });
+
+          if (streamConfig.useDrm && Object.keys(streamConfig.clearKeys).length > 0) {
+            player.configure({ drm: { clearKeys: streamConfig.clearKeys } });
+          }
+
+          try {
+            await player.load(streamConfig.url);
+            renderResolutionMenu();
+            video.play().catch(() => {});
+          } catch (e) {
+            console.error('Error loading stream with Shaka:', e);
+            showWaitNotice("স্ট্রিমটি প্লে হতে সমস্যা করছে!");
+          }
+        }
       }
     }
 
@@ -471,10 +514,7 @@
     function closePlayer() {
       toggleResolutionMenu(false);
       hideWaitNotice();
-      if (shakaInstance) {
-        shakaInstance.destroy();
-        shakaInstance = null;
-      }
+      cleanupPlayers();
       document.getElementById("playerSection").classList.remove("active");
     }
 
