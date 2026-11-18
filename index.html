@@ -3,9 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PB SPORTS TV — Shaka Player (MPD / M3U8)</title>
+  <title>PB SPORTS TV — Shaka Player (M3U8)</title>
   <!-- Shaka Player compiled library -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
+  <!-- HLS.js plugin for Shaka Player to support M3U8 properly -->
+  <script src="https://cdn.jsdelivr.net/npm/mux.js@7.3.0/dist/mux.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background: #070b14; color: #f1f5f9; padding: 14px; }
@@ -165,15 +167,12 @@
         <button onclick="closePlayer()" style="background:#1e293b;color:#fff;border:1px solid #334155;padding:3px 8px;border-radius:4px;cursor:pointer;">Close</button>
       </div>
 
-      <!-- চ্যানেল লোড নোটিস: প্লে শুরু হলে হাইড হয়ে যাবে -->
       <div class="channel-wait-notice" id="channelWaitNotice">
         চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন
       </div>
 
-      <!-- সাধারণ HTML video ট্যাগ (কন্ট্রোলসহ) -->
       <video id="video" width="640" autoplay controls playsinline></video>
 
-      <!-- 17951:49:25 time + Resolution popup menu -->
       <div class="player-controls-bar">
         <div class="time-badge">
           <span id="liveTimeDisplay">17951:49:25</span>
@@ -191,15 +190,11 @@
       </div>
     </div>
 
-    <!-- ফিল্টার ট্যাব -->
     <div class="tabs" id="filterTabs"></div>
-
-    <!-- ম্যাচ কার্ড লিস্ট -->
     <div class="match-list" id="matchList"></div>
   </div>
 
   <script>
-    // GitHub Repo (boddj24-glitch/Public-TV) রুট থেকে sport.json ও sport.m3u কল করা হবে
     const SPORT_JSON_URL = "./sport.json";
     const SPORT_M3U_URL = "./sport.m3u";
 
@@ -209,29 +204,14 @@
     let shakaInstance = null;
     let selectedResolution = "auto";
 
-    function parsePipeDrm(rawUrl, clearKeys = {}) {
-      if (!rawUrl || typeof rawUrl !== "string") {
-        return { url: "", useDrm: false, clearKeys: {} };
-      }
-      const [cleanUrl, queryPart] = rawUrl.split("|");
-      const parsedKeys = { ...clearKeys };
-      if (queryPart) {
-        const params = new URLSearchParams(queryPart.replace(/&drmLicense=/g, "&drmLicense="));
-        const license = params.get("drmLicense");
-        if (license && license.includes(":")) {
-          const [kid, key] = license.split(":");
-          if (kid && key) parsedKeys[kid.trim()] = key.trim();
-        }
-      }
-      return {
-        url: (cleanUrl || "").trim(),
-        useDrm: Object.keys(parsedKeys).length > 0,
-        clearKeys: parsedKeys
-      };
+    function parsePipeDrm(rawUrl) {
+      if (!rawUrl || typeof rawUrl !== "string") return { url: "" };
+      const [cleanUrl] = rawUrl.split("|");
+      return { url: (cleanUrl || "").trim() };
     }
 
     function normalizeJsonItem(item, index = 0) {
-      const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
+      const parsed = parsePipeDrm(item.url || "");
       const logo = item.logoUrl || item.tvgLogo || item.teamA?.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
       return {
         name: item.name || `Channel ${index + 1}`,
@@ -241,9 +221,7 @@
         status: item.status || "live",
         teamA: item.teamA || { name: item.name || "Team A", logo },
         teamB: item.teamB || { name: item.category || "LIVE", logo },
-        url: drmInfo.url,
-        useDrm: Boolean(item.useDrm || drmInfo.useDrm),
-        clearKeys: Object.keys(item.clearKeys || {}).length > 0 ? item.clearKeys : drmInfo.clearKeys
+        url: parsed.url
       };
     }
 
@@ -268,8 +246,8 @@
         } else if (line.startsWith("#EXT")) {
           continue;
         } else if (currentMeta) {
-          const drmInfo = parsePipeDrm(line);
-          if (drmInfo.url) {
+          const parsed = parsePipeDrm(line);
+          if (parsed.url) {
             const logo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
             items.push({
               name: currentMeta.name,
@@ -279,9 +257,7 @@
               status: currentMeta.status,
               teamA: { name: currentMeta.name, logo },
               teamB: { name: "LIVE", logo },
-              url: drmInfo.url,
-              useDrm: drmInfo.useDrm,
-              clearKeys: drmInfo.clearKeys
+              url: parsed.url
             });
           }
           currentMeta = null;
@@ -292,7 +268,6 @@
 
     async function loadStreamsFromFiles() {
       const combined = [];
-
       try {
         const jsonRes = await fetch(SPORT_JSON_URL, { cache: "no-store" });
         if (jsonRes.ok) {
@@ -303,9 +278,7 @@
             if (normalized.url) combined.push(normalized);
           });
         }
-      } catch (e) {
-        console.warn("sport.json load failed:", e);
-      }
+      } catch (e) { console.warn("sport.json load failed:", e); }
 
       try {
         const m3uRes = await fetch(SPORT_M3U_URL, { cache: "no-store" });
@@ -313,9 +286,7 @@
           const m3uText = await m3uRes.text();
           combined.push(...parseM3uText(m3uText));
         }
-      } catch (e) {
-        console.warn("sport.m3u load failed:", e);
-      }
+      } catch (e) { console.warn("sport.m3u load failed:", e); }
 
       STREAMS = combined;
       renderMatches();
@@ -324,9 +295,7 @@
     function showWaitNotice(customText) {
       const notice = document.getElementById("channelWaitNotice");
       if (!notice) return;
-      notice.textContent = typeof customText === "string"
-        ? customText
-        : "চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন";
+      notice.textContent = typeof customText === "string" ? customText : "চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন";
       notice.style.display = "block";
     }
 
@@ -352,20 +321,9 @@
       if (el) el.textContent = formatLargeDuration(BASE_SECONDS + elapsed);
     }
 
-    function formatBitrate(bandwidth) {
-      if (!bandwidth) return "";
-      const mbps = bandwidth / 1_000_000;
-      if (mbps >= 1) {
-        const rounded = Number.isInteger(mbps) ? mbps : parseFloat(mbps.toFixed(1));
-        return ` (${rounded} Mbps)`;
-      }
-      return ` (${Math.round(bandwidth / 1000)} Kbps)`;
-    }
-
     function renderResolutionMenu() {
       const listEl = document.getElementById("resolutionList");
       if (!listEl) return;
-
       const tracks = shakaInstance ? shakaInstance.getVariantTracks() : [];
       const uniqueMap = new Map();
 
@@ -373,37 +331,16 @@
         if (!t.height) return;
         const key = `${t.height}-${t.bandwidth || 0}`;
         if (!uniqueMap.has(key)) {
-          uniqueMap.set(key, {
-            id: t.id,
-            height: t.height,
-            bandwidth: t.bandwidth || 0
-          });
+          uniqueMap.set(key, { id: t.id, height: t.height, bandwidth: t.bandwidth || 0 });
         }
       });
 
-      const sortedTracks = [...uniqueMap.values()].sort((a, b) => {
-        if (b.height !== a.height) return b.height - a.height;
-        return b.bandwidth - a.bandwidth;
-      });
+      const sortedTracks = [...uniqueMap.values()].sort((a, b) => b.height - a.height);
 
-      const fallbackPresets = [
-        { id: "1080-8", height: 1080, bandwidth: 8_000_000, hd: true },
-        { id: "1080-6.5", height: 1080, bandwidth: 6_500_000, hd: true },
-        { id: "720-5", height: 720, bandwidth: 5_000_000, hd: false },
-        { id: "720-2.5", height: 720, bandwidth: 2_500_000, hd: false },
-        { id: "540-0", height: 540, bandwidth: 0, hd: false },
-        { id: "396-1.3", height: 396, bandwidth: 1_300_000, hd: false },
-        { id: "396-899", height: 396, bandwidth: 899_000, hd: false },
-        { id: "396-449", height: 396, bandwidth: 449_000, hd: false },
-        { id: "288-0", height: 288, bandwidth: 0, hd: false }
-      ];
-
-      const itemsToShow = sortedTracks.length > 0 ? sortedTracks : fallbackPresets;
-
-      let html = itemsToShow.map((item) => {
+      let html = sortedTracks.map((item) => {
         const isActive = String(selectedResolution) === String(item.id);
-        const isHd = item.hd || item.height >= 1080;
-        const label = `${item.height}p${formatBitrate(item.bandwidth)}`;
+        const isHd = item.height >= 720;
+        const label = `${item.height}p`;
         return `
           <button class="res-item ${isActive ? "active" : ""}" type="button" onclick="applyResolution('${item.id}', '${label}')">
             <span>${label}${isHd ? `<span class="hd-tag">HD</span>` : ""}</span>
@@ -419,7 +356,6 @@
           <span class="check-mark">${autoActive ? "✓" : ""}</span>
         </button>
       `;
-
       listEl.innerHTML = html;
     }
 
@@ -435,16 +371,9 @@
           shakaInstance.configure({ abr: { enabled: false } });
           const tracks = shakaInstance.getVariantTracks();
           const exact = tracks.find(t => String(t.id) === String(resId));
-          if (exact) {
-            shakaInstance.selectVariantTrack(exact, true);
-          } else {
-            const targetHeight = Number(String(resId).split("-")[0]);
-            const byHeight = tracks.find(t => t.height === targetHeight);
-            if (byHeight) shakaInstance.selectVariantTrack(byHeight, true);
-          }
+          if (exact) shakaInstance.selectVariantTrack(exact, true);
         }
       }
-
       renderResolutionMenu();
       toggleResolutionMenu(false);
     }
@@ -464,62 +393,33 @@
 
     async function initApp(streamConfig = STREAMS[activeIndex]) {
       if (!streamConfig || !streamConfig.url) return;
+      
       shaka.polyfill.installAll();
 
       if (shaka.Player.isBrowserSupported()) {
         const video = document.getElementById('video');
-        if (shakaInstance) {
-          try {
-            await shakaInstance.destroy();
-          } catch (_) {}
-          shakaInstance = null;
+        if (!shakaInstance) {
+          shakaInstance = new shaka.Player(video);
         }
-        const player = new shaka.Player(video);
-        shakaInstance = player;
 
-        player.configure({
-          abr: {
-            enabled: true
-          }
-        });
+        shakaInstance.configure({ abr: { enabled: true } });
 
-        player.addEventListener('error', (event) => {
-          console.error('Error code', event.detail.code, 'object', event.detail);
+        shakaInstance.addEventListener('error', (event) => {
+          console.error('Shaka Error:', event.detail);
           showWaitNotice(`স্ট্রিম লোড হচ্ছে না (Error: ${event.detail.code})`);
         });
 
-        player.addEventListener('manifestparsed', () => {
-          selectedResolution = "auto";
-          const labelEl = document.getElementById("activeResLabel");
-          if (labelEl) labelEl.textContent = "(Auto)";
-          renderResolutionMenu();
-        });
-
-        if (streamConfig.useDrm && Object.keys(streamConfig.clearKeys).length > 0) {
-          player.configure({
-            drm: {
-              clearKeys: streamConfig.clearKeys
-            }
-          });
-        } else {
-          player.configure({
-            drm: {
-              clearKeys: {}
-            }
-          });
-        }
-
         try {
-          await player.load(streamConfig.url);
+          await shakaInstance.load(streamConfig.url);
           renderResolutionMenu();
           video.play().catch(() => {});
-          console.log('Stream loaded successfully:', streamConfig.name);
+          console.log('M3U8 Stream loaded successfully with Shaka Player');
         } catch (e) {
-          console.error('Error loading stream', e);
-          renderResolutionMenu();
+          console.error('Error loading M3U8 stream with Shaka:', e);
+          showWaitNotice("স্ট্রিমটি প্লে হতে সমস্যা করছে!");
         }
       } else {
-        console.error('Browser not supported!');
+        console.error('Browser not supported for Shaka Player!');
       }
     }
 
@@ -529,7 +429,6 @@
       if (!streamConfig) return;
 
       showWaitNotice();
-
       document.getElementById("playerTitle").textContent =
         `${streamConfig.sport} | ${streamConfig.matchTitle} (${streamConfig.name})`;
       document.getElementById("playerSection").classList.add("active");
@@ -541,6 +440,9 @@
     function closePlayer() {
       toggleResolutionMenu(false);
       hideWaitNotice();
+      if (shakaInstance) {
+        shakaInstance.unload();
+      }
       document.getElementById("playerSection").classList.remove("active");
     }
 
@@ -598,7 +500,6 @@
       video.addEventListener('playing', hideWaitNotice);
       video.addEventListener('waiting', () => showWaitNotice());
 
-      renderResolutionMenu();
       updateLiveTimeCounter();
       setInterval(updateLiveTimeCounter, 1000);
 
