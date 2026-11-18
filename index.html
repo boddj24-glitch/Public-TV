@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PB SPORTS TV — Shaka Player (MPD / M3U8)</title>
+  
+  <!-- Social Media Preview Meta Tags -->
+  <meta property="og:title" id="ogTitle" content="PB SPORTS TV — Live Streaming" />
+  <meta property="og:description" content="Watch live HD streaming of Cricket, Football & League matches." />
+  <meta property="og:image" id="ogImage" content="https://i.postimg.cc/HntSg3xw/20240823_024624.png" />
+  <meta property="og:type" content="website" />
+
   <!-- Shaka Player compiled library -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
   <!-- HLS.js for M3U8 support -->
@@ -57,6 +64,15 @@
       display: flex; justify-content: space-between; align-items: center; gap: 10px;
       padding: 8px 12px; background: #111827; font-size: 13px; font-weight: 700;
     }
+    .player-head-btns {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .pip-btn, .close-btn {
+      background: #1e293b; color: #fff; border: 1px solid #334155;
+      padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;
+    }
+    .pip-btn:hover, .close-btn:hover { border-color: #f97316; }
+
     .player-controls-bar {
       display: flex; justify-content: space-between; align-items: center; gap: 10px;
       padding: 8px 12px; background: #0f172a; border-top: 1px solid #1e293b;
@@ -164,18 +180,18 @@
     <div class="player-section" id="playerSection">
       <div class="player-head">
         <span id="playerTitle">Now Playing</span>
-        <button onclick="closePlayer()" style="background:#1e293b;color:#fff;border:1px solid #334155;padding:3px 8px;border-radius:4px;cursor:pointer;">Close</button>
+        <div class="player-head-btns">
+          <button class="pip-btn" onclick="togglePiP()">Pop-up ⧉</button>
+          <button class="close-btn" onclick="closePlayer()">Close</button>
+        </div>
       </div>
 
-      <!-- চ্যানেল লোড নোটিস -->
       <div class="channel-wait-notice" id="channelWaitNotice">
         চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন
       </div>
 
-      <!-- সাধারণ HTML video ট্যাগ -->
       <video id="video" width="640" autoplay controls playsinline></video>
 
-      <!-- 17951:49:25 time + Resolution popup menu -->
       <div class="player-controls-bar">
         <div class="time-badge">
           <span id="liveTimeDisplay">17951:49:25</span>
@@ -193,10 +209,7 @@
       </div>
     </div>
 
-    <!-- ফিল্টার ট্যাব -->
     <div class="tabs" id="filterTabs"></div>
-
-    <!-- ম্যাচ কার্ড লিস্ট -->
     <div class="match-list" id="matchList"></div>
   </div>
 
@@ -234,15 +247,18 @@
 
     function normalizeJsonItem(item, index = 0) {
       const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
-      const logo = item.logoUrl || item.tvgLogo || item.teamA?.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
+      const defaultLogo = item.logoUrl || item.tvgLogo || item.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
+      const channelName = item.name || `Channel ${index + 1}`;
+      const sportCategory = (item.sport || item.category || "SPORTS").toUpperCase();
+
       return {
-        name: item.name || `Channel ${index + 1}`,
+        name: channelName,
         hot: item.hot ?? true,
-        sport: (item.sport || item.category || "SPORTS").toUpperCase(),
-        matchTitle: item.matchTitle || item.name || `Channel ${index + 1}`,
-        status: item.status || "live",
-        teamA: item.teamA || { name: item.name || "Team A", logo },
-        teamB: item.teamB || { name: item.category || "LIVE", logo },
+        sport: sportCategory,
+        matchTitle: item.matchTitle || channelName,
+        status: (item.status && item.status.toLowerCase() === "upcoming") ? "upcoming" : "live",
+        teamA: item.teamA || { name: channelName, logo: defaultLogo },
+        teamB: item.teamB || { name: sportCategory, logo: defaultLogo },
         url: drmInfo.url,
         useDrm: Boolean(item.useDrm || drmInfo.useDrm),
         clearKeys: Object.keys(item.clearKeys || {}).length > 0 ? item.clearKeys : drmInfo.clearKeys
@@ -263,8 +279,6 @@
           currentMeta = {
             name: title,
             sport: (groupMatch?.[1] || "SPORTS").toUpperCase(),
-            matchTitle: title,
-            status: "live",
             logo: logoMatch?.[1] || ""
           };
         } else if (line.startsWith("#EXT")) {
@@ -272,15 +286,15 @@
         } else if (currentMeta) {
           const drmInfo = parsePipeDrm(line);
           if (drmInfo.url) {
-            const logo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
+            const defaultLogo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
             items.push({
               name: currentMeta.name,
               hot: true,
               sport: currentMeta.sport,
-              matchTitle: currentMeta.matchTitle,
-              status: currentMeta.status,
-              teamA: { name: currentMeta.name, logo },
-              teamB: { name: "LIVE", logo },
+              matchTitle: currentMeta.name,
+              status: "live",
+              teamA: { name: currentMeta.name, logo: defaultLogo },
+              teamB: { name: currentMeta.sport, logo: defaultLogo },
               url: drmInfo.url,
               useDrm: drmInfo.useDrm,
               clearKeys: drmInfo.clearKeys
@@ -320,14 +334,18 @@
 
       STREAMS = combined;
       renderMatches();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const matchIdx = urlParams.get('match');
+      if (matchIdx !== null && STREAMS[Number(matchIdx)]) {
+        playStream(Number(matchIdx));
+      }
     }
 
     function showWaitNotice(customText) {
       const notice = document.getElementById("channelWaitNotice");
       if (!notice) return;
-      notice.textContent = typeof customText === "string"
-        ? customText
-        : "চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন";
+      notice.textContent = typeof customText === "string" ? customText : "চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন";
       notice.style.display = "block";
     }
 
@@ -374,11 +392,7 @@
         if (!t.height) return;
         const key = `${t.height}-${t.bandwidth || 0}`;
         if (!uniqueMap.has(key)) {
-          uniqueMap.set(key, {
-            id: t.id,
-            height: t.height,
-            bandwidth: t.bandwidth || 0
-          });
+          uniqueMap.set(key, { id: t.id, height: t.height, bandwidth: t.bandwidth || 0 });
         }
       });
 
@@ -459,7 +473,22 @@
       }
     }
 
-    // আগের প্লেয়ার পুরোপুরি মুছে নতুন চ্যানেলের জন্য প্রস্তুত করা
+    // পপ-আপ বা Picture-in-Picture মোড চালু/বন্ধ করার ফাংশন
+    async function togglePiP() {
+      const video = document.getElementById('video');
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else if (document.pictureInPictureEnabled) {
+          await video.requestPictureInPicture();
+        } else {
+          alert("আপনার ব্রাউজার পপ-আপ (Picture-in-Picture) সাপোর্ট করে না!");
+        }
+      } catch (error) {
+        console.error("PiP Error:", error);
+      }
+    }
+
     async function cleanupAllPlayers() {
       if (shakaInstance) {
         try {
@@ -486,7 +515,6 @@
       if (!streamConfig || !streamConfig.url) return;
       const video = document.getElementById('video');
 
-      // চ্যানেল পাল্টানোর সাথে সাথেই আগের প্লেয়ার ইনস্ট্যান্স সম্পূর্ণ ক্লিয়ার করা হচ্ছে
       await cleanupAllPlayers();
 
       const cleanUrl = streamConfig.url.trim();
@@ -494,7 +522,6 @@
       const isM3u8 = urlLower.includes('.m3u8') || urlLower.indexOf('m3u8') !== -1;
 
       if (isM3u8) {
-        // HLS.js for .m3u8
         if (Hls.isSupported()) {
           const hls = new Hls({
             xhrSetup: function (xhr, url) {
@@ -534,7 +561,6 @@
           });
         }
       } else {
-        // Shaka Player for .mpd
         shaka.polyfill.installAll();
 
         if (shaka.Player.isBrowserSupported()) {
@@ -586,8 +612,14 @@
 
       showWaitNotice();
 
-      document.getElementById("playerTitle").textContent =
-        `${streamConfig.sport} | ${streamConfig.matchTitle} (${streamConfig.name})`;
+      const titleText = `${streamConfig.sport} | ${streamConfig.matchTitle} (${streamConfig.name})`;
+      document.getElementById("playerTitle").textContent = titleText;
+      
+      document.getElementById("ogTitle").content = titleText;
+      if(streamConfig.teamA && streamConfig.teamA.logo) {
+        document.getElementById("ogImage").content = streamConfig.teamA.logo;
+      }
+
       document.getElementById("playerSection").classList.add("active");
       window.scrollTo({ top: 0, behavior: "smooth" });
 
@@ -597,6 +629,9 @@
     async function closePlayer() {
       toggleResolutionMenu(false);
       hideWaitNotice();
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture().catch(() => {});
+      }
       await cleanupAllPlayers();
       document.getElementById("playerSection").classList.remove("active");
     }
