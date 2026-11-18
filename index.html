@@ -5,15 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PB SPORTS TV — Shaka Player (MPD / M3U8)</title>
   
-  <!-- Social Media Preview Meta Tags -->
   <meta property="og:title" id="ogTitle" content="PB SPORTS TV — Live Streaming" />
   <meta property="og:description" content="Watch live HD streaming of Cricket, Football & League matches." />
   <meta property="og:image" id="ogImage" content="https://i.postimg.cc/HntSg3xw/20240823_024624.png" />
   <meta property="og:type" content="website" />
 
-  <!-- Shaka Player compiled library -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
-  <!-- HLS.js for M3U8 support -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -64,9 +61,7 @@
       display: flex; justify-content: space-between; align-items: center; gap: 10px;
       padding: 8px 12px; background: #111827; font-size: 13px; font-weight: 700;
     }
-    .player-head-btns {
-      display: flex; align-items: center; gap: 6px;
-    }
+    .player-head-btns { display: flex; align-items: center; gap: 6px; }
     .pip-btn, .close-btn {
       background: #1e293b; color: #fff; border: 1px solid #334155;
       padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;
@@ -92,7 +87,6 @@
     }
     .res-trigger:hover { border-color: #f97316; }
 
-    /* Resolution Menu */
     .res-menu {
       display: none;
       position: absolute;
@@ -113,9 +107,7 @@
       padding: 10px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       font-weight: 700; font-size: 13px; color: #f4f4f5;
     }
-    .res-close {
-      background: none; border: none; color: #a1a1aa; font-size: 16px; cursor: pointer; line-height: 1;
-    }
+    .res-close { background: none; border: none; color: #a1a1aa; font-size: 16px; cursor: pointer; line-height: 1; }
     .res-list { max-height: 280px; overflow-y: auto; padding: 6px 0; }
     .res-item {
       width: 100%; background: none; border: none; color: #e4e4e7;
@@ -123,9 +115,7 @@
       display: flex; justify-content: space-between; align-items: center;
     }
     .res-item:hover, .res-item.active { background: rgba(255, 255, 255, 0.1); }
-    .hd-tag {
-      color: #ef4444; font-size: 10px; font-weight: 900; margin-left: 4px; vertical-align: super;
-    }
+    .hd-tag { color: #ef4444; font-size: 10px; font-weight: 900; margin-left: 4px; vertical-align: super; }
     .check-mark { color: #f8fafc; font-weight: 800; }
 
     #video { width: 100%; max-height: 480px; background: #000; display: block; }
@@ -176,7 +166,6 @@
       <a href="https://t.me/+VqDOF_-beaQyMWY1" target="_blank" class="social-btn telegram-btn">📱 Telegram</a>
     </div>
 
-    <!-- প্লেয়ার সেকশন -->
     <div class="player-section" id="playerSection">
       <div class="player-head">
         <span id="playerTitle">Now Playing</span>
@@ -245,18 +234,34 @@
       };
     }
 
+    // স্মার্ট টাইম ও স্ট্যাটাস ডিটেকশন লজিক
     function normalizeJsonItem(item, index = 0) {
       const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
       const defaultLogo = item.logoUrl || item.tvgLogo || item.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
       const channelName = item.name || `Channel ${index + 1}`;
       const sportCategory = (item.sport || item.category || "SPORTS").toUpperCase();
 
+      let calculatedStatus = "live";
+
+      // যদি JSON ফাইলে 'startTime' দেওয়া থাকে (যেমন: "2026-11-10T14:30:00")
+      if (item.startTime) {
+        const matchTime = new Date(item.startTime).getTime();
+        const currentTime = Date.now();
+        // যদি বর্তমান সময় ম্যাচের সময়ের চেয়ে কম হয়, তবে সেটি আপকামিং দেখাবে
+        if (currentTime < matchTime) {
+          calculatedStatus = "upcoming";
+        }
+      } else if (item.status) {
+        // যদি ম্যানুয়াল স্ট্যাটাস দেওয়া থাকে
+        calculatedStatus = item.status.toLowerCase() === "upcoming" ? "upcoming" : "live";
+      }
+
       return {
         name: channelName,
         hot: item.hot ?? true,
         sport: sportCategory,
         matchTitle: item.matchTitle || channelName,
-        status: (item.status && item.status.toLowerCase() === "upcoming") ? "upcoming" : "live",
+        status: calculatedStatus,
         teamA: item.teamA || { name: channelName, logo: defaultLogo },
         teamB: item.teamB || { name: sportCategory, logo: defaultLogo },
         url: drmInfo.url,
@@ -473,7 +478,6 @@
       }
     }
 
-    // পপ-আপ বা Picture-in-Picture মোড চালু/বন্ধ করার ফাংশন
     async function togglePiP() {
       const video = document.getElementById('video');
       try {
