@@ -208,7 +208,7 @@
 
   <script>
     const SPORT_JSON_URL = "./sport.json";
-    const SPORT_M3U_URL = "./sport.m3u";
+    const MATCHES_FOLDER = "./matches";
 
     let STREAMS = [];
     let activeIndex = 0;
@@ -224,7 +224,7 @@
       const [cleanUrl, queryPart] = rawUrl.split("|");
       const parsedKeys = { ...clearKeys };
       if (queryPart) {
-        const params = new URLSearchParams(queryPart.replace(/&drmLicense=/g, "&drmLicense="));
+        const params = new URLSearchParams(queryPart);
         const license = params.get("drmLicense");
         if (license && license.includes(":")) {
           const [kid, key] = license.split(":");
@@ -343,78 +343,35 @@
       };
     }
 
-    function parseM3uText(m3uText) {
-      const lines = m3uText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      const items = [];
-      let currentMeta = null;
-
-      for (const line of lines) {
-        if (line.startsWith("#EXTINF:")) {
-          const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
-          const groupMatch = line.match(/group-title="([^"]*)"/i);
-          const statusMatch = line.match(/status="([^"]*)"/i);
-          const timeMatch = line.match(/starttime="([^"]*)"/i);
-          const commaIdx = line.lastIndexOf(",");
-          const title = commaIdx !== -1 ? line.slice(commaIdx + 1).trim() : "Live Channel";
-          
-          currentMeta = {
-            name: title,
-            sport: (groupMatch?.[1] || "SPORTS").toUpperCase(),
-            logo: logoMatch?.[1] || "",
-            status: statusMatch ? statusMatch[1] : null,
-            startTime: timeMatch ? timeMatch[1] : null
-          };
-        } else if (line.startsWith("#EXT")) {
-          continue;
-        } else if (currentMeta) {
-          const drmInfo = parsePipeDrm(line);
-          if (drmInfo.url) {
-            const defaultLogo = currentMeta.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
-            const dummyItem = {
-              name: currentMeta.name,
-              sport: currentMeta.sport,
-              matchTitle: currentMeta.name,
-              status: currentMeta.status,
-              startTime: currentMeta.startTime,
-              url: drmInfo.url,
-              useDrm: drmInfo.useDrm,
-              clearKeys: drmInfo.clearKeys,
-              logoUrl: defaultLogo
-            };
-            items.push(normalizeJsonItem(dummyItem, items.length));
-          }
-          currentMeta = null;
-        }
-      }
-      return items;
-    }
-
     async function loadStreamsFromFiles() {
       const urlParams = new URLSearchParams(window.location.search);
       const matchParam = urlParams.get('match');
 
-      // যদি লিংকে আলাদা কোনো ম্যাচ বা ফাইল দেওয়া থাকে (যেমন: ?match=25 বা ?match=match-25)
+      // ১. যদি লিংকে ?match= থাকে, তবে সরাসরি matches/ ফোল্ডার থেকে নির্দিষ্ট JSON ফাইল লোড করবে
       if (matchParam) {
-        const fileName = matchParam.toLowerCase().startsWith("match-") ? `${matchParam}.json` : `match-${matchParam}.json`;
+        const cleanParam = matchParam.replace(/[^a-zA-Z0-9_-]/g, "");
+        const fileName = cleanParam.toLowerCase().startsWith("match-") ? `${cleanParam}.json` : `match-${cleanParam}.json`;
+        
         try {
-          const singleRes = await fetch(`./${fileName}`, { cache: "no-store" });
+          const singleRes = await fetch(`${MATCHES_FOLDER}/${fileName}`, { cache: "no-store" });
           if (singleRes.ok) {
             const data = await singleRes.json();
-            const item = Array.isArray(data) ? data[0] : data;
-            const normalized = normalizeJsonItem(item, 0);
-            if (normalized.url) {
-              STREAMS = [normalized];
+            const arr = Array.isArray(data) ? data : (data.streams ? data.streams : [data]);
+            const normalizedList = arr.map((item, idx) => normalizeJsonItem(item, idx)).filter(item => item.url);
+            
+            if (normalizedList.length > 0) {
+              STREAMS = normalizedList;
               renderMatches();
               playStream(0);
               return;
             }
           }
         } catch (e) {
-          console.warn("Single match JSON load failed, trying default list...", e);
+          console.warn(`Folder match load failed:`, e);
         }
       }
 
-      // স্বাভাবিক নিয়ম বা ডিফল্ট লিস্ট লোড করার জন্য
+      // ২. হোমপেজে সব ম্যাচের লিস্ট দেখানোর জন্য শুধু sport.json লোড করবে
       const combined = [];
       try {
         const jsonRes = await fetch(SPORT_JSON_URL, { cache: "no-store" });
@@ -430,23 +387,13 @@
         console.warn("sport.json load failed:", e);
       }
 
-      try {
-        const m3uRes = await fetch(SPORT_M3U_URL, { cache: "no-store" });
-        if (m3uRes.ok) {
-          const m3uText = await m3uRes.text();
-          combined.push(...parseM3uText(m3uText));
-        }
-      } catch (e) {
-        console.warn("sport.m3u load failed:", e);
-      }
-
       STREAMS = combined;
       renderMatches();
 
-      // যদি লিংকে সংখ্যাসূচক ইনডেক্স দেওয়া থাকে (যেমন: ?match=1)
+      // ৩. যদি লিংকে সংখ্যাসূচক ইনডেক্স থাকে
       if (matchParam && !isNaN(Number(matchParam))) {
         const userNum = Number(matchParam);
-        const targetIndex = userNum - 1; // ১-ভিত্তিক ইনডেক্স (1 দিলে 1 নম্বর চ্যানেলই প্লে হবে)
+        const targetIndex = userNum - 1;
         if (STREAMS[targetIndex]) {
           playStream(targetIndex);
         }
