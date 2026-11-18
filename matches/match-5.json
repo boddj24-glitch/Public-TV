@@ -1,1 +1,18 @@
-
+{
+  "name": "Abudhabi Sports",
+  "category": "Sports",
+  "logo": "▶️",
+  "tone": "blue",
+  "url": "https://admn-live-cdn-lb.starzplayarabia.com/out/v1/admn_tv/abudhabi_sports_1/abudhabi_sports_1_dash_enc/index.mpd",
+  "useDrm": true,
+  "clearKeys": {
+    "e78769d87a41e15036a4fb8bfdf1371e": "37be0375dc9fe544c3c6de6a105f7c0a"
+  },
+  "drm": {
+    "scheme": "clearkey",
+    "license": "e78769d87a41e15036a4fb8bfdf1371e:37be0375dc9fe544c3c6de6a105f7c0a"
+  },
+  "logoUrl": "",
+  "fallbackLogo": "▶️",
+  "startTime": "2026-11-10T10:00:00"
+}
