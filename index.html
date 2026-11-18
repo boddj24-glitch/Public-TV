@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PB SPORTS TV — MPD & M3U8 Player</title>
-  <!-- Shaka Player for MPD -->
+  <title>PB SPORTS TV — Shaka Player (MPD / M3U8)</title>
+  <!-- Shaka Player compiled library -->
   <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.16.2/dist/shaka-player.compiled.js"></script>
-  <!-- HLS.js for M3U8 -->
+  <!-- HLS.js for M3U8 support -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -167,12 +167,15 @@
         <button onclick="closePlayer()" style="background:#1e293b;color:#fff;border:1px solid #334155;padding:3px 8px;border-radius:4px;cursor:pointer;">Close</button>
       </div>
 
+      <!-- চ্যানেল লোড নোটিস -->
       <div class="channel-wait-notice" id="channelWaitNotice">
         চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন
       </div>
 
+      <!-- সাধারণ HTML video ট্যাগ -->
       <video id="video" width="640" autoplay controls playsinline></video>
 
+      <!-- 17951:49:25 time + Resolution popup menu -->
       <div class="player-controls-bar">
         <div class="time-badge">
           <span id="liveTimeDisplay">17951:49:25</span>
@@ -190,7 +193,10 @@
       </div>
     </div>
 
+    <!-- ফিল্টার ট্যাব -->
     <div class="tabs" id="filterTabs"></div>
+
+    <!-- ম্যাচ কার্ড লিস্ট -->
     <div class="match-list" id="matchList"></div>
   </div>
 
@@ -205,6 +211,7 @@
     let hlsInstance = null;
     let selectedResolution = "auto";
 
+    // আপনার আসল ড্রিম ও লাইসেন্স পার্সিং লজিক
     function parsePipeDrm(rawUrl, clearKeys = {}) {
       if (!rawUrl || typeof rawUrl !== "string") {
         return { url: "", useDrm: false, clearKeys: {} };
@@ -212,7 +219,7 @@
       const [cleanUrl, queryPart] = rawUrl.split("|");
       const parsedKeys = { ...clearKeys };
       if (queryPart) {
-        const params = new URLSearchParams(queryPart);
+        const params = new URLSearchParams(queryPart.replace(/&drmLicense=/g, "&drmLicense="));
         const license = params.get("drmLicense");
         if (license && license.includes(":")) {
           const [kid, key] = license.split(":");
@@ -288,6 +295,7 @@
 
     async function loadStreamsFromFiles() {
       const combined = [];
+
       try {
         const jsonRes = await fetch(SPORT_JSON_URL, { cache: "no-store" });
         if (jsonRes.ok) {
@@ -298,7 +306,9 @@
             if (normalized.url) combined.push(normalized);
           });
         }
-      } catch (e) { console.warn("sport.json load failed:", e); }
+      } catch (e) {
+        console.warn("sport.json load failed:", e);
+      }
 
       try {
         const m3uRes = await fetch(SPORT_M3U_URL, { cache: "no-store" });
@@ -306,7 +316,9 @@
           const m3uText = await m3uRes.text();
           combined.push(...parseM3uText(m3uText));
         }
-      } catch (e) { console.warn("sport.m3u load failed:", e); }
+      } catch (e) {
+        console.warn("sport.m3u load failed:", e);
+      }
 
       STREAMS = combined;
       renderMatches();
@@ -315,7 +327,9 @@
     function showWaitNotice(customText) {
       const notice = document.getElementById("channelWaitNotice");
       if (!notice) return;
-      notice.textContent = typeof customText === "string" ? customText : "চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন";
+      notice.textContent = typeof customText === "string"
+        ? customText
+        : "চ্যানেল লোড হচ্ছে ১ মিনিট অপেক্ষা করুন";
       notice.style.display = "block";
     }
 
@@ -341,30 +355,54 @@
       if (el) el.textContent = formatLargeDuration(BASE_SECONDS + elapsed);
     }
 
+    function formatBitrate(bandwidth) {
+      if (!bandwidth) return "";
+      const mbps = bandwidth / 1_000_000;
+      if (mbps >= 1) {
+        const rounded = Number.isInteger(mbps) ? mbps : parseFloat(mbps.toFixed(1));
+        return ` (${rounded} Mbps)`;
+      }
+      return ` (${Math.round(bandwidth / 1000)} Kbps)`;
+    }
+
     function renderResolutionMenu() {
       const listEl = document.getElementById("resolutionList");
       if (!listEl) return;
-      
-      let tracks = [];
-      if (shakaInstance) {
-        tracks = shakaInstance.getVariantTracks();
-      }
 
+      const tracks = shakaInstance ? shakaInstance.getVariantTracks() : [];
       const uniqueMap = new Map();
+
       tracks.forEach((t) => {
         if (!t.height) return;
         const key = `${t.height}-${t.bandwidth || 0}`;
         if (!uniqueMap.has(key)) {
-          uniqueMap.set(key, { id: t.id, height: t.height, bandwidth: t.bandwidth || 0 });
+          uniqueMap.set(key, {
+            id: t.id,
+            height: t.height,
+            bandwidth: t.bandwidth || 0
+          });
         }
       });
 
-      const sortedTracks = [...uniqueMap.values()].sort((a, b) => b.height - a.height);
+      const sortedTracks = [...uniqueMap.values()].sort((a, b) => {
+        if (b.height !== a.height) return b.height - a.height;
+        return b.bandwidth - a.bandwidth;
+      });
 
-      let html = sortedTracks.map((item) => {
+      const fallbackPresets = [
+        { id: "1080-8", height: 1080, bandwidth: 8_000_000, hd: true },
+        { id: "720-5", height: 720, bandwidth: 5_000_000, hd: false },
+        { id: "540-0", height: 540, bandwidth: 0, hd: false },
+        { id: "396-1.3", height: 396, bandwidth: 1_300_000, hd: false },
+        { id: "288-0", height: 288, bandwidth: 0, hd: false }
+      ];
+
+      const itemsToShow = sortedTracks.length > 0 ? sortedTracks : fallbackPresets;
+
+      let html = itemsToShow.map((item) => {
         const isActive = String(selectedResolution) === String(item.id);
-        const isHd = item.height >= 720;
-        const label = `${item.height}p`;
+        const isHd = item.hd || item.height >= 720;
+        const label = `${item.height}p${formatBitrate(item.bandwidth)}`;
         return `
           <button class="res-item ${isActive ? "active" : ""}" type="button" onclick="applyResolution('${item.id}', '${label}')">
             <span>${label}${isHd ? `<span class="hd-tag">HD</span>` : ""}</span>
@@ -380,6 +418,7 @@
           <span class="check-mark">${autoActive ? "✓" : ""}</span>
         </button>
       `;
+
       listEl.innerHTML = html;
     }
 
@@ -395,9 +434,16 @@
           shakaInstance.configure({ abr: { enabled: false } });
           const tracks = shakaInstance.getVariantTracks();
           const exact = tracks.find(t => String(t.id) === String(resId));
-          if (exact) shakaInstance.selectVariantTrack(exact, true);
+          if (exact) {
+            shakaInstance.selectVariantTrack(exact, true);
+          } else {
+            const targetHeight = Number(String(resId).split("-")[0]);
+            const byHeight = tracks.find(t => t.height === targetHeight);
+            if (byHeight) shakaInstance.selectVariantTrack(byHeight, true);
+          }
         }
       }
+
       renderResolutionMenu();
       toggleResolutionMenu(false);
     }
@@ -415,14 +461,13 @@
       }
     }
 
-    // ক্লিনআপ ফাংশন (আগের যেকোনো প্লেয়ার সচল থাকলে তা ডিস্টয় করবে)
-    function cleanupPlayers() {
+    function cleanupAllPlayers() {
       if (shakaInstance) {
-        shakaInstance.destroy();
+        try { shakaInstance.destroy(); } catch (_) {}
         shakaInstance = null;
       }
       if (hlsInstance) {
-        hlsInstance.destroy();
+        try { hlsInstance.destroy(); } catch (_) {}
         hlsInstance = null;
       }
     }
@@ -430,21 +475,27 @@
     async function initApp(streamConfig = STREAMS[activeIndex]) {
       if (!streamConfig || !streamConfig.url) return;
       const video = document.getElementById('video');
-      
-      cleanupPlayers();
 
-      const isM3u8 = streamConfig.url.includes('.m3u8') || streamConfig.url.includes('m3u8');
+      cleanupAllPlayers();
+
+      const urlLower = streamConfig.url.toLowerCase();
+      const isM3u8 = urlLower.includes('.m3u8');
 
       if (isM3u8) {
-        // এইচএলএস (.m3u8) লিংকের জন্য Hls.js ব্যবহার করা হবে
+        // .m3u8 লিংকের জন্য আপনার চাওয়া মতে HLS.js ব্যবহার হবে
         if (Hls.isSupported()) {
           const hls = new Hls();
           hlsInstance = hls;
           hls.loadSource(streamConfig.url);
           hls.attachMedia(video);
+
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            selectedResolution = "auto";
+            const labelEl = document.getElementById("activeResLabel");
+            if (labelEl) labelEl.textContent = "(Auto)";
             video.play().catch(() => {});
           });
+
           hls.on(Hls.Events.ERROR, (event, data) => {
             if (data.fatal) {
               switch (data.type) {
@@ -455,34 +506,49 @@
                   hls.recoverMediaError();
                   break;
                 default:
-                  showWaitNotice("স্ট্রিম প্লে হতে সমস্যা হচ্ছে!");
+                  showWaitNotice("স্ট্রিম লোড হতে সমস্যা হচ্ছে!");
                   break;
               }
             }
           });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          // সাফারি বা আইওএস ডিভাইসের জন্য নেট্টিভ সাপোর্ট
           video.src = streamConfig.url;
           video.addEventListener('loadedmetadata', () => {
             video.play().catch(() => {});
           });
         }
       } else {
-        // এমপিডি (.mpd) বা অন্যান্য লিংকের জন্য Shaka Player ব্যবহার করা হবে
+        // .mpd বা অন্যান্য লিংকের জন্য আপনার আসল Shaka Player এবং DRM/ClearKeys কনফিগারেশন
         shaka.polyfill.installAll();
+
         if (shaka.Player.isBrowserSupported()) {
           const player = new shaka.Player(video);
           shakaInstance = player;
 
-          player.configure({ abr: { enabled: true } });
+          player.configure({
+            abr: { enabled: true }
+          });
 
           player.addEventListener('error', (event) => {
-            console.error('Shaka Error:', event.detail);
+            console.error('Error code', event.detail.code, 'object', event.detail);
             showWaitNotice(`স্ট্রিম লোড হচ্ছে না (Error: ${event.detail.code})`);
           });
 
+          player.addEventListener('manifestparsed', () => {
+            selectedResolution = "auto";
+            const labelEl = document.getElementById("activeResLabel");
+            if (labelEl) labelEl.textContent = "(Auto)";
+            renderResolutionMenu();
+          });
+
           if (streamConfig.useDrm && Object.keys(streamConfig.clearKeys).length > 0) {
-            player.configure({ drm: { clearKeys: streamConfig.clearKeys } });
+            player.configure({
+              drm: { clearKeys: streamConfig.clearKeys }
+            });
+          } else {
+            player.configure({
+              drm: { clearKeys: {} }
+            });
           }
 
           try {
@@ -490,8 +556,8 @@
             renderResolutionMenu();
             video.play().catch(() => {});
           } catch (e) {
-            console.error('Error loading stream with Shaka:', e);
-            showWaitNotice("স্ট্রিমটি প্লে হতে সমস্যা করছে!");
+            console.error('Error loading stream', e);
+            renderResolutionMenu();
           }
         }
       }
@@ -503,6 +569,7 @@
       if (!streamConfig) return;
 
       showWaitNotice();
+
       document.getElementById("playerTitle").textContent =
         `${streamConfig.sport} | ${streamConfig.matchTitle} (${streamConfig.name})`;
       document.getElementById("playerSection").classList.add("active");
@@ -514,7 +581,7 @@
     function closePlayer() {
       toggleResolutionMenu(false);
       hideWaitNotice();
-      cleanupPlayers();
+      cleanupAllPlayers();
       document.getElementById("playerSection").classList.remove("active");
     }
 
@@ -572,6 +639,7 @@
       video.addEventListener('playing', hideWaitNotice);
       video.addEventListener('waiting', () => showWaitNotice());
 
+      renderResolutionMenu();
       updateLiveTimeCounter();
       setInterval(updateLiveTimeCounter, 1000);
 
