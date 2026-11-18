@@ -211,7 +211,6 @@
     let hlsInstance = null;
     let selectedResolution = "auto";
 
-    // আপনার আসল ড্রিম ও লাইসেন্স পার্সিং লজিক
     function parsePipeDrm(rawUrl, clearKeys = {}) {
       if (!rawUrl || typeof rawUrl !== "string") {
         return { url: "", useDrm: false, clearKeys: {} };
@@ -295,7 +294,6 @@
 
     async function loadStreamsFromFiles() {
       const combined = [];
-
       try {
         const jsonRes = await fetch(SPORT_JSON_URL, { cache: "no-store" });
         if (jsonRes.ok) {
@@ -461,13 +459,24 @@
       }
     }
 
+    // নিখুঁতভাবে সব প্লেয়ার এবং ভিডিও সোর্স রিসেট করার ফাংশন
     function cleanupAllPlayers() {
+      const video = document.getElementById('video');
+      if (video) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      }
       if (shakaInstance) {
-        try { shakaInstance.destroy(); } catch (_) {}
+        try {
+          shakaInstance.destroy();
+        } catch (_) {}
         shakaInstance = null;
       }
       if (hlsInstance) {
-        try { hlsInstance.destroy(); } catch (_) {}
+        try {
+          hlsInstance.destroy();
+        } catch (_) {}
         hlsInstance = null;
       }
     }
@@ -476,17 +485,24 @@
       if (!streamConfig || !streamConfig.url) return;
       const video = document.getElementById('video');
 
+      // আগের প্লেয়ারের যেকোনো ডেটা বা মেমোরি পুরোপুরি মুছে ফেলা হলো
       cleanupAllPlayers();
 
-      const urlLower = streamConfig.url.toLowerCase();
-      const isM3u8 = urlLower.includes('.m3u8');
+      // লিংকের এক্সটেনশন বা ধরন নিখুঁতভাবে চেক করার লজিক
+      const cleanUrl = streamConfig.url.trim();
+      const urlLower = cleanUrl.toLowerCase();
+      const isM3u8 = urlLower.includes('.m3u8') || urlLower.indexOf('m3u8') !== -1;
 
       if (isM3u8) {
-        // .m3u8 লিংকের জন্য আপনার চাওয়া মতে HLS.js ব্যবহার হবে
+        // .m3u8 লিংকের জন্য HLS.js
         if (Hls.isSupported()) {
-          const hls = new Hls();
+          const hls = new Hls({
+            xhrSetup: function (xhr, url) {
+              xhr.withCredentials = false;
+            }
+          });
           hlsInstance = hls;
-          hls.loadSource(streamConfig.url);
+          hls.loadSource(cleanUrl);
           hls.attachMedia(video);
 
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -512,13 +528,13 @@
             }
           });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = streamConfig.url;
+          video.src = cleanUrl;
           video.addEventListener('loadedmetadata', () => {
             video.play().catch(() => {});
           });
         }
       } else {
-        // .mpd বা অন্যান্য লিংকের জন্য আপনার আসল Shaka Player এবং DRM/ClearKeys কনফিগারেশন
+        // .mpd বা অন্যান্য লিংকের জন্য Shaka Player
         shaka.polyfill.installAll();
 
         if (shaka.Player.isBrowserSupported()) {
@@ -552,7 +568,7 @@
           }
 
           try {
-            await player.load(streamConfig.url);
+            await player.load(cleanUrl);
             renderResolutionMenu();
             video.play().catch(() => {});
           } catch (e) {
