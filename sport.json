@@ -69,25 +69,5 @@
     "clearKeys": {
       "290e09c837da78d5cd961978d390515c": "b748836c71e6a4ca68ef5b5652db6247"
     }
-  },
-  {
-    "name": "Laliga HD",
-    "hot": true,
-    "sport": "FOOTBALL",
-    "matchTitle": "SAFF CHAMPIONSHIP 2026",
-    "status": "live",
-    "teamA": {
-      "name": "SAFF",
-      "logo": "https://i.postimg.cc/v8JPQjFK/laliga.png"
-    },
-    "teamB": {
-      "name": "SAFF",
-      "logo": "https://i.postimg.cc/v8JPQjFK/laliga.png"
-    },
-    "url": "https://abfjk4haaaaaaaampv6ofhkihi4r6.bia-cf.live.pv-cdn.net/iad-nitro/live/clients/dash/enc/m6sqanvm2m/out/v1/f6beb46c6e9a4132ad739f3ca27df6aa/cenc.mpd",
-    "useDrm": true,
-    "clearKeys": {
-      "1444f4235529f183f0a5a486befe9cdb": "e5e3fec67a1bb3472a2089c8a0a2557f"
-    }
   }
 ]
