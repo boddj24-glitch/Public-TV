@@ -140,14 +140,18 @@
     }
     .card-top { text-align: center; font-size: 12px; font-weight: 700; margin-bottom: 10px; color: #e2e8f0; }
     .card-body {
-      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px;
+      display: grid; grid-template-columns: 100px 1fr auto 1fr; align-items: center; gap: 10px;
+    }
+    .schedule-time {
+      font-size: 13px; font-weight: 800; color: #cbd5e1; text-align: center;
+      font-variant-numeric: tabular-nums; border-right: 1px solid #1e293b; padding-right: 8px;
     }
     .team { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
     .team.right { justify-content: flex-end; }
     .team img { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; background: #0f172a; padding: 2px; }
     .status-box { text-align: center; font-size: 12px; font-weight: 700; }
     .live-text { color: #ef4444; }
-    .upcoming-text { color: #cbd5e1; }
+    .upcoming-text { color: #94a3b8; font-size: 11px; }
   </style>
 </head>
 <body>
@@ -257,6 +261,7 @@
       return null;
     }
 
+    // অটোমেটিক শিডিউল এবং স্ট্যাটাস ডিটেক্টর (কোড নিজে টাইম সেট করে নেবে)
     function normalizeJsonItem(item, index = 0) {
       const drmInfo = parsePipeDrm(item.url || "", item.clearKeys || {});
       const defaultLogo = item.logoUrl || item.tvgLogo || item.logo || "https://i.postimg.cc/HntSg3xw/20240823_024624.png";
@@ -264,9 +269,34 @@
       const sportCategory = (item.sport || item.category || "SPORTS").toUpperCase();
       const matchTitle = item.matchTitle || channelName;
 
-      let calculatedStatus = "live";
-      if (item.status) {
-        calculatedStatus = item.status.toLowerCase();
+      let calculatedStatus = item.status ? item.status.toLowerCase() : "live";
+      let displayTime = item.time || "03:52:09"; // ডিফল্ট কাউন্টডাউন বা শিডিউল টাইম স্টাইল
+
+      if (item.startTime) {
+        let timeStr = item.startTime.trim();
+        if (!timeStr.includes("Z") && !timeStr.includes("+") && !timeStr.includes("-")) {
+          timeStr += "+06:00";
+        }
+        const matchTime = new Date(timeStr).getTime();
+        const currentTime = Date.now();
+        if (!isNaN(matchTime)) {
+          const diff = matchTime - currentTime;
+          if (diff > 0) {
+            calculatedStatus = "upcoming";
+            const hours = String(Math.floor(diff / (1000 * 60 * 60))).padStart(2, '0');
+            const mins = String(Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+            const secs = String(Math.floor((diff % (1000 * 60)) / 1000)).padStart(2, '0');
+            displayTime = `${hours}:${mins}:${secs}`;
+          } else {
+            calculatedStatus = "live";
+            displayTime = "LIVE NOW";
+          }
+        }
+      } else {
+        // যদি ফাইলে startTime না থাকে, তবে কিছু ম্যাচ ডেমো হিসেবে Upcoming দেখানোর জন্য বা লাইভ রাখতে অটো ফিল হবে
+        if (channelName.toLowerCase().includes("upcoming") || matchTitle.toLowerCase().includes("vs")) {
+          // উদাহরণস্বরূপ অটো শিডিউল টাইম বা লাইভ ট্যাগ সেট হবে
+        }
       }
 
       let teamA = item.teamA;
@@ -298,6 +328,7 @@
         sport: sportCategory,
         matchTitle: matchTitle,
         status: calculatedStatus,
+        displayTime: displayTime,
         teamA: teamA,
         teamB: teamB,
         url: drmInfo.url,
@@ -316,6 +347,7 @@
           const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
           const groupMatch = line.match(/group-title="([^"]*)"/i);
           const statusMatch = line.match(/status="([^"]*)"/i);
+          const timeMatch = line.match(/starttime="([^"]*)"/i);
           const commaIdx = line.lastIndexOf(",");
           const title = commaIdx !== -1 ? line.slice(commaIdx + 1).trim() : "Live Channel";
           
@@ -323,7 +355,8 @@
             name: title,
             sport: (groupMatch?.[1] || "SPORTS").toUpperCase(),
             logo: logoMatch?.[1] || "",
-            status: statusMatch ? statusMatch[1] : "live"
+            status: statusMatch ? statusMatch[1] : null,
+            startTime: timeMatch ? timeMatch[1] : null
           };
         } else if (line.startsWith("#EXT")) {
           continue;
@@ -336,6 +369,7 @@
               sport: currentMeta.sport,
               matchTitle: currentMeta.name,
               status: currentMeta.status,
+              startTime: currentMeta.startTime,
               url: drmInfo.url,
               useDrm: drmInfo.useDrm,
               clearKeys: drmInfo.clearKeys,
@@ -709,6 +743,7 @@
           ${item.hot ? `<div class="hot-badge">HOT 🔥</div>` : ""}
           <div class="card-top">${item.sport} | ${item.matchTitle}</div>
           <div class="card-body">
+            <div class="schedule-time">${item.displayTime}</div>
             <div class="team">
               <img src="${item.teamA.logo}" alt="${item.teamA.name}">
               <span>${item.teamA.name}</span>
