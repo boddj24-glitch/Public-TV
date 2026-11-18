@@ -14,7 +14,8 @@
       "license": "e78769d87a41e15036a4fb8bfdf1371e:37be0375dc9fe544c3c6de6a105f7c0a"
     },
     "logoUrl": "",
-    "fallbackLogo": "▶️"
+    "fallbackLogo": "▶️",
+    "startTime": "2026-11-10T10:00:00"
   },
   {
     "name": "TSN1 SPORTS FHD",
@@ -31,7 +32,8 @@
       "license": "14eeabf30c14b7fbf3008c03099ce011:17d2ac8dbc5429bd70af3433aa12158d"
     },
     "logoUrl": "",
-    "fallbackLogo": "▶️"
+    "fallbackLogo": "▶️",
+    "startTime": "2026-11-10T12:00:00"
   },
   {
     "name": "Premier sports 1",
@@ -48,14 +50,15 @@
       "license": "1444f4235529f183f0a5a486befe9cdb:e5e3fec67a1bb3472a2089c8a0a2557f"
     },
     "logoUrl": "",
-    "fallbackLogo": "▶️"
+    "fallbackLogo": "▶️",
+    "startTime": "2026-11-10T14:00:00"
   },
   {
     "name": "Willow Sports",
     "hot": true,
     "sport": "CRICKET",
     "matchTitle": "BANGLADESH VS SOUTH AFRICA",
-    "status": "live",
+    "startTime": "2026-11-10T18:00:00",
     "teamA": {
       "name": "Bangladesh",
       "logo": "https://flagcdn.com/w80/bd.png"
